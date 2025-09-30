@@ -23,14 +23,14 @@ const Home = () => {
             Analyze winning ads. Adapt them to your product. Export ready-to-run creatives.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link to="/studio">
+            <Link to="/signup">
               <Button variant="hero" size="lg" className="text-lg">
-                Open Studio <ArrowRight className="ml-2" />
+                Регистрация <ArrowRight className="ml-2" />
               </Button>
             </Link>
-            <Link to="/docs">
+            <Link to="/login">
               <Button variant="ghost" size="lg" className="text-lg">
-                Documentation
+                Войти
               </Button>
             </Link>
           </div>

@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2, LogOut } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -10,11 +10,55 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Studio = () => {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Проверяем авторизацию
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Требуется авторизация",
+          description: "Пожалуйста, войдите в систему для доступа к студии",
+          variant: "destructive",
+        });
+        navigate("/login");
+        return;
+      }
+      
+      setIsCheckingAuth(false);
+    };
+
+    checkAuth();
+
+    // Слушаем изменения авторизации
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        navigate("/login");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate, toast]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: "Выход выполнен",
+      description: "Вы вышли из системы",
+    });
+    navigate("/");
+  };
 
   const handleImport = () => {
     if (!url) return;
@@ -44,6 +88,14 @@ const Studio = () => {
     }, 4000);
   };
 
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Top Bar */}
@@ -53,7 +105,10 @@ const Studio = () => {
             COPY ADD
           </Link>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm">Settings</Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Выход
+            </Button>
           </div>
         </div>
       </header>
