@@ -5,7 +5,7 @@ const Terms = () => {
     <div className="min-h-screen">
       <header className="border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center">
-          <Link to="/" className="text-2xl font-bold">COPY ADD</Link>
+          <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">COPY ADD</Link>
         </div>
       </header>
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, Loader2 } from "lucide-react";
@@ -48,7 +49,9 @@ const Studio = () => {
       {/* Top Bar */}
       <header className="border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">COPY ADD</h1>
+          <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">
+            COPY ADD
+          </Link>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm">Settings</Button>
           </div>
