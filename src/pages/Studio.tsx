@@ -268,9 +268,9 @@ const Studio = () => {
 
   // STATE 3: ACTIVE STUDIO
   return (
-    <div className="min-h-screen flex flex-col bg-black">
+    <div className="h-screen flex flex-col bg-black overflow-hidden">
       {/* Top Bar */}
-      <header className="h-[60px] bg-[#0a0a0a] border-b border-[#404040] flex items-center justify-between px-6">
+      <header className="h-[60px] bg-[#0a0a0a] border-b border-[#404040] flex items-center justify-between px-6 flex-shrink-0">
         <h1 className="text-xl font-bold text-white">COPY ADD</h1>
         
         <div className="flex items-center gap-3">
@@ -349,7 +349,7 @@ const Studio = () => {
         </div>
       </header>
 
-      <div className="flex-1 flex relative">
+      <div className="flex-1 flex relative overflow-hidden">
         {/* Left Panel */}
         <motion.div
           initial={false}
