@@ -37,6 +37,7 @@ const Studio = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
+  const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
   const [uploadedProducts, setUploadedProducts] = useState<File[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -401,7 +402,11 @@ const Studio = () => {
         </motion.div>
 
         {/* Center Canvas */}
-        <div className="flex-1 flex items-center justify-center relative group">
+        <div 
+          className="flex-1 flex items-center justify-center relative group"
+          onMouseEnter={() => setIsRightPanelVisible(true)}
+          onMouseLeave={() => setIsRightPanelVisible(false)}
+        >
           <div className="relative max-w-[800px]">
             {/* Ad Info Overlay */}
             <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-sm rounded px-3 py-2">
@@ -447,7 +452,14 @@ const Studio = () => {
         </div>
 
         {/* Right Panel - Upload Zone */}
-        <div className="w-[320px] bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] border-l border-[#404040] p-6 flex flex-col">
+        <motion.div
+          initial={{ x: "100%" }}
+          animate={{ x: isRightPanelVisible ? 0 : "100%" }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          onMouseEnter={() => setIsRightPanelVisible(true)}
+          onMouseLeave={() => setIsRightPanelVisible(false)}
+          className="absolute right-0 top-0 h-full w-[320px] bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] border-l border-[#404040] p-6 flex flex-col backdrop-blur-sm z-20 shadow-2xl"
+        >
           {uploadedProducts.length === 0 ? (
             <div
               {...getRootProps()}
@@ -500,7 +512,7 @@ const Studio = () => {
               </Button>
             </>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );
