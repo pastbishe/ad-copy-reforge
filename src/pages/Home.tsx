@@ -1,61 +1,26 @@
 import { Button } from "@/components/ui/button";
-import { Upload, Wand2, Download, User, FileText } from "lucide-react";
+import { Upload, Wand2, Download } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useTheme } from "@/contexts/ThemeContext";
+import { Header } from "@/components/Header";
+import heroBg from "@/assets/hero-bg.jpg";
 
 const Home = () => {
-  const { t, language, setLanguage } = useLanguage();
-  const { theme, setTheme } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navigation */}
-      <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">
-            COPY ADD
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link to="/docs">
-              <Button variant="ghost" size="sm">
-                <FileText className="w-4 h-4 mr-2" />
-                {t("docs")}
-              </Button>
-            </Link>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger className="w-[100px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">EN</SelectItem>
-                <SelectItem value="ru">RU</SelectItem>
-                <SelectItem value="de">DE</SelectItem>
-                <SelectItem value="pl">PL</SelectItem>
-              </SelectContent>
-            </Select>
-            <Link to="/profile">
-              <Button variant="ghost" size="icon">
-                <User className="w-4 h-4" />
-              </Button>
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center text-white overflow-hidden pt-16">
         <div className="absolute inset-0 z-0">
-          {/* Animated gradient background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900" />
-          <div className="absolute inset-0 opacity-30">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" />
-            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-            <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
-          </div>
-          {/* Grid pattern overlay */}
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-20" />
+          <img 
+            src={heroBg} 
+            alt="Hero background" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/60 via-blue-900/60 to-indigo-900/60" />
         </div>
         
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto fade-in">

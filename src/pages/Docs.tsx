@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Header } from "@/components/Header";
 
 const Docs = () => {
+  const { t } = useLanguage();
   const sections = [
     { title: "Getting Started", path: "/docs/getting-started" },
     { title: "Finding Competitor Ads", path: "/docs/finding-competitor-ads" },
@@ -11,13 +14,9 @@ const Docs = () => {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center">
-          <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">COPY ADD</Link>
-        </div>
-      </header>
+      <Header />
 
-      <div className="flex">
+      <div className="flex pt-16">
         {/* Sidebar */}
         <aside className="w-64 border-r border-border min-h-[calc(100vh-4rem)] p-6">
           <nav className="space-y-2">

@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Header } from "@/components/Header";
 
 const Signup = () => {
   const [email, setEmail] = useState("");
@@ -14,15 +16,15 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Валидация
     if (!email || !password || !confirmPassword) {
       toast({
-        title: "Ошибка",
-        description: "Пожалуйста, заполните все поля",
+        title: t("error"),
+        description: t("fillAllFields"),
         variant: "destructive",
       });
       return;
@@ -30,8 +32,8 @@ const Signup = () => {
 
     if (password !== confirmPassword) {
       toast({
-        title: "Ошибка",
-        description: "Пароли не совпадают",
+        title: t("error"),
+        description: t("passwordsDontMatch"),
         variant: "destructive",
       });
       return;
@@ -39,8 +41,8 @@ const Signup = () => {
 
     if (password.length < 6) {
       toast({
-        title: "Ошибка",
-        description: "Пароль должен содержать минимум 6 символов",
+        title: t("error"),
+        description: t("passwordTooShort"),
         variant: "destructive",
       });
       return;
@@ -60,17 +62,16 @@ const Signup = () => {
       if (error) throw error;
 
       toast({
-        title: "Успешно!",
-        description: "Код подтверждения отправлен на почту",
+        title: t("success"),
+        description: t("verificationCodeSent"),
       });
 
-      // Переход на страницу ввода кода
       navigate(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (error: any) {
       console.error("Signup error:", error);
       toast({
-        title: "Ошибка регистрации",
-        description: error.message || "Не удалось зарегистрироваться",
+        title: t("signupError"),
+        description: error.message || t("signupFailed"),
         variant: "destructive",
       });
     } finally {
@@ -80,19 +81,13 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center">
-          <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">
-            COPY ADD
-          </Link>
-        </div>
-      </header>
+      <Header />
 
-      <div className="flex items-center justify-center p-6 min-h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-center p-6 min-h-[calc(100vh-4rem)] pt-20">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Создать аккаунт</CardTitle>
-            <CardDescription>Зарегистрируйтесь для доступа к COPY ADD</CardDescription>
+            <CardTitle className="text-2xl font-bold">{t("createAccount")}</CardTitle>
+            <CardDescription>{t("signupDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignup} className="space-y-4">
@@ -108,22 +103,22 @@ const Signup = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Пароль</Label>
+                <Label htmlFor="password">{t("password")}</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Минимум 6 символов"
+                  placeholder={t("passwordPlaceholder")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Повторите пароль</Label>
+                <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="Повторите пароль"
+                  placeholder={t("confirmPasswordPlaceholder")}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -135,13 +130,13 @@ const Signup = () => {
                 variant="hero"
                 disabled={isLoading}
               >
-                {isLoading ? "Регистрация..." : "Зарегистрироваться"}
+                {isLoading ? t("signingUp") : t("signup")}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">
-                Уже есть аккаунт?{" "}
+                {t("alreadyHaveAccount")}{" "}
                 <Link to="/login" className="underline underline-offset-4 hover:text-foreground">
-                  Войти
+                  {t("login")}
                 </Link>
               </p>
             </form>

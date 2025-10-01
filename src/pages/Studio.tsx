@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, Loader2, LogOut } from "lucide-react";
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Header } from "@/components/Header";
 
 const Studio = () => {
   const [url, setUrl] = useState("");
@@ -20,6 +22,7 @@ const Studio = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     // Проверяем авторизацию
@@ -37,8 +40,8 @@ const Studio = () => {
       
       if (!session) {
         toast({
-          title: "Требуется авторизация",
-          description: "Пожалуйста, войдите в систему для доступа к студии",
+          title: t("authRequired"),
+          description: t("authRequiredDesc"),
           variant: "destructive",
         });
         navigate("/login");
@@ -62,12 +65,11 @@ const Studio = () => {
   }, [navigate, toast]);
 
   const handleLogout = async () => {
-    // Очищаем demo пользователя и выходим из Supabase
     localStorage.removeItem("demo_user");
     await supabase.auth.signOut();
     toast({
-      title: "Выход выполнен",
-      description: "Вы вышли из системы",
+      title: t("loggedOut"),
+      description: t("loggedOutDesc"),
     });
     navigate("/");
   };
@@ -110,29 +112,22 @@ const Studio = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Top Bar */}
-      <header className="border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">
-            COPY ADD
-          </Link>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Выход
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header />
+      <div className="fixed top-16 right-4 z-40">
+        <Button variant="ghost" size="sm" onClick={handleLogout}>
+          <LogOut className="w-4 h-4 mr-2" />
+          {t("logout")}
+        </Button>
+      </div>
 
       {/* Empty State */}
-      <main className="flex-1 flex items-center justify-center p-6">
+      <main className="flex-1 flex items-center justify-center p-6 pt-24">
         <div className="w-full max-w-2xl text-center fade-in">
           {isLoading ? (
             <div className="space-y-6">
               <Loader2 className="w-12 h-12 mx-auto animate-spin text-muted-foreground" />
               <div className="space-y-2">
-                <p className="text-xl font-medium">Analyzing competitor ads...</p>
+                <p className="text-xl font-medium">{t("analyzingAds")}</p>
                 <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                   <div 
                     className="h-full bg-foreground transition-all duration-300 ease-out"
@@ -148,9 +143,9 @@ const Studio = () => {
                 <ChevronDown className="w-10 h-10 text-muted-foreground" />
               </div>
               
-              <h2 className="text-3xl font-bold mb-4">Import Competitor Ads</h2>
+              <h2 className="text-3xl font-bold mb-4">{t("importAds")}</h2>
               <p className="text-muted-foreground mb-8 text-lg">
-                Paste Facebook Ad Library URLs or profile links
+                {t("importAdsDesc")}
               </p>
 
               <div className="space-y-4">
@@ -165,16 +160,16 @@ const Studio = () => {
                 
                 <div className="flex items-center gap-4">
                   <div className="flex-1 h-px bg-border" />
-                  <span className="text-sm text-muted-foreground">or</span>
+                  <span className="text-sm text-muted-foreground">{t("or")}</span>
                   <div className="flex-1 h-px bg-border" />
                 </div>
 
                 <Select>
                   <SelectTrigger className="h-12">
-                    <SelectValue placeholder="Choose from history" />
+                    <SelectValue placeholder={t("chooseFromHistory")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No previous imports</SelectItem>
+                    <SelectItem value="none">{t("noPreviousImports")}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -185,7 +180,7 @@ const Studio = () => {
                   onClick={handleImport}
                   disabled={!url}
                 >
-                  Import Ads
+                  {t("importAds")}
                 </Button>
               </div>
             </>

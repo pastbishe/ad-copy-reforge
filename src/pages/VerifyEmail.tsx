@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Header } from "@/components/Header";
 
 const VerifyEmail = () => {
   const [code, setCode] = useState("");
@@ -14,14 +16,15 @@ const VerifyEmail = () => {
   const email = searchParams.get("email") || "";
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (code.length !== 6) {
       toast({
-        title: "Ошибка",
-        description: "Введите 6-значный код",
+        title: t("error"),
+        description: t("enter6DigitCode"),
         variant: "destructive",
       });
       return;
@@ -39,16 +42,16 @@ const VerifyEmail = () => {
       if (error) throw error;
 
       toast({
-        title: "Успешно!",
-        description: "Email подтвержден",
+        title: t("success"),
+        description: t("emailVerified"),
       });
 
       navigate("/studio");
     } catch (error: any) {
       console.error("Verification error:", error);
       toast({
-        title: "Ошибка подтверждения",
-        description: error.message || "Неверный код",
+        title: t("verificationError"),
+        description: error.message || t("invalidCode"),
         variant: "destructive",
       });
     } finally {
@@ -67,12 +70,12 @@ const VerifyEmail = () => {
       if (error) throw error;
 
       toast({
-        title: "Код отправлен",
-        description: "Проверьте почту",
+        title: t("codeSent"),
+        description: t("checkEmail"),
       });
     } catch (error: any) {
       toast({
-        title: "Ошибка",
+        title: t("error"),
         description: error.message,
         variant: "destructive",
       });
@@ -83,24 +86,18 @@ const VerifyEmail = () => {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center">
-          <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">
-            COPY ADD
-          </Link>
-        </div>
-      </header>
+      <Header />
 
-      <div className="flex items-center justify-center p-6 min-h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-center p-6 min-h-[calc(100vh-4rem)] pt-20">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Подтвердите email</CardTitle>
-            <CardDescription>Введите 6-значный код, отправленный на {email}</CardDescription>
+            <CardTitle className="text-2xl font-bold">{t("verifyEmail")}</CardTitle>
+            <CardDescription>{t("verifyEmailDesc")} {email}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleVerify} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="code">Код подтверждения</Label>
+                <Label htmlFor="code">{t("verificationCode")}</Label>
                 <Input
                   id="code"
                   type="text"
@@ -119,7 +116,7 @@ const VerifyEmail = () => {
                 variant="hero"
                 disabled={isLoading}
               >
-                {isLoading ? "Проверка..." : "Подтвердить"}
+                {isLoading ? t("verifying") : t("verify")}
               </Button>
 
               <Button
@@ -129,12 +126,12 @@ const VerifyEmail = () => {
                 onClick={handleResendCode}
                 disabled={isLoading}
               >
-                Отправить код повторно
+                {t("resendCode")}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">
                 <Link to="/login" className="underline underline-offset-4 hover:text-foreground">
-                  Вернуться ко входу
+                  {t("backToLogin")}
                 </Link>
               </p>
             </form>
