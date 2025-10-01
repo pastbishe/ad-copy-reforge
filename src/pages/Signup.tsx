@@ -61,13 +61,11 @@ const Signup = () => {
 
       toast({
         title: "Успешно!",
-        description: "Регистрация завершена. Проверьте почту для подтверждения.",
+        description: "Код подтверждения отправлен на почту",
       });
 
-      // Если email confirmation отключен, сразу перенаправляем
-      if (data.session) {
-        navigate("/studio");
-      }
+      // Переход на страницу ввода кода
+      navigate(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (error: any) {
       console.error("Signup error:", error);
       toast({

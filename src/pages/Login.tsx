@@ -54,6 +54,23 @@ const Login = () => {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    
+    // Фейковый вход для тестирования
+    localStorage.setItem("demo_user", "true");
+    
+    toast({
+      title: "Demo вход",
+      description: "Вы вошли в демо-режиме",
+    });
+    
+    setTimeout(() => {
+      navigate("/studio");
+      setIsLoading(false);
+    }, 500);
+  };
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-border">
@@ -101,6 +118,16 @@ const Login = () => {
                 disabled={isLoading}
               >
                 {isLoading ? "Вход..." : "Войти"}
+              </Button>
+
+              <Button 
+                type="button" 
+                className="w-full" 
+                variant="outline"
+                onClick={handleDemoLogin}
+                disabled={isLoading}
+              >
+                Demo вход (тестирование)
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">

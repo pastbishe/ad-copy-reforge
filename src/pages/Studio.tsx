@@ -24,6 +24,15 @@ const Studio = () => {
   useEffect(() => {
     // Проверяем авторизацию
     const checkAuth = async () => {
+      // Проверяем demo пользователя
+      const isDemoUser = localStorage.getItem("demo_user") === "true";
+      
+      if (isDemoUser) {
+        setIsCheckingAuth(false);
+        return;
+      }
+
+      // Проверяем реальную сессию Supabase (с автоматическим сохранением)
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -41,17 +50,20 @@ const Studio = () => {
 
     checkAuth();
 
-    // Слушаем изменения авторизации
+    // Подписываемся на изменения авторизации для автоматического сохранения сессии
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
+      if (event === 'SIGNED_OUT' && !localStorage.getItem("demo_user")) {
         navigate("/login");
       }
+      // Событие SIGNED_IN автоматически сохранит сессию благодаря настройке persistSession: true
     });
 
     return () => subscription.unsubscribe();
   }, [navigate, toast]);
 
   const handleLogout = async () => {
+    // Очищаем demo пользователя и выходим из Supabase
+    localStorage.removeItem("demo_user");
     await supabase.auth.signOut();
     toast({
       title: "Выход выполнен",
