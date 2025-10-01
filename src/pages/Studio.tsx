@@ -120,17 +120,16 @@ const Studio = () => {
         </Button>
       </div>
 
-      {/* Empty State */}
-      <main className="flex-1 flex items-center justify-center p-6 pt-24">
-        <div className="w-full max-w-2xl text-center fade-in">
+      <main className="flex-1 flex items-center justify-center p-6 pt-24 bg-background">
+        <div className="w-full max-w-3xl text-center fade-in">
           {isLoading ? (
-            <div className="space-y-6">
-              <Loader2 className="w-12 h-12 mx-auto animate-spin text-muted-foreground" />
-              <div className="space-y-2">
-                <p className="text-xl font-medium">{t("analyzingAds")}</p>
-                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+            <div className="space-y-8">
+              <Loader2 className="w-16 h-16 mx-auto animate-spin text-primary" />
+              <div className="space-y-3">
+                <p className="text-2xl font-semibold">{t("analyzingAds")}</p>
+                <div className="w-full max-w-md mx-auto bg-secondary/30 rounded-full h-2 overflow-hidden">
                   <div 
-                    className="h-full bg-foreground transition-all duration-300 ease-out"
+                    className="h-full bg-primary transition-all duration-300 ease-out"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -139,33 +138,35 @@ const Studio = () => {
             </div>
           ) : (
             <>
-              <div className="w-20 h-20 bg-card rounded-full flex items-center justify-center mx-auto mb-6 border border-border">
-                <ChevronDown className="w-10 h-10 text-muted-foreground" />
+              <div className="w-24 h-24 bg-secondary/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-8 border-2 border-border/50">
+                <ChevronDown className="w-12 h-12 text-muted-foreground" />
               </div>
               
-              <h2 className="text-3xl font-bold mb-4">{t("importAds")}</h2>
-              <p className="text-muted-foreground mb-8 text-lg">
-                {t("importAdsDesc")}
+              <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                {t("importCompetitorAds")}
+              </h2>
+              <p className="text-muted-foreground/80 mb-12 text-lg">
+                {t("pasteAdUrls")}
               </p>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <Input
                   type="url"
                   placeholder="https://facebook.com/ads/library/..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="h-14 text-lg"
+                  className="h-16 text-base bg-card/50 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all"
                   onKeyDown={(e) => e.key === 'Enter' && handleImport()}
                 />
                 
                 <div className="flex items-center gap-4">
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-sm text-muted-foreground">{t("or")}</span>
-                  <div className="flex-1 h-px bg-border" />
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                  <span className="text-sm text-muted-foreground/60 px-4">{t("or")}</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
                 </div>
 
                 <Select>
-                  <SelectTrigger className="h-12">
+                  <SelectTrigger className="h-14 bg-card/50 backdrop-blur-sm border-border/50">
                     <SelectValue placeholder={t("chooseFromHistory")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -174,13 +175,13 @@ const Studio = () => {
                 </Select>
 
                 <Button 
-                  variant="hero" 
+                  variant="default" 
                   size="lg" 
-                  className="w-full"
+                  className="w-full h-14 text-base font-medium bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all"
                   onClick={handleImport}
                   disabled={!url}
                 >
-                  {t("importAds")}
+                  {t("importCompetitorAds")}
                 </Button>
               </div>
             </>

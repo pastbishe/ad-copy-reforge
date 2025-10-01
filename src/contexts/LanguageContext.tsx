@@ -82,7 +82,9 @@ const translations: Translations = {
     
     // Studio
     importAds: "Import Competitor Ads",
+    importCompetitorAds: "Import Competitor Ads",
     importAdsDesc: "Paste Facebook Ad Library URLs or profile links",
+    pasteAdUrls: "Paste Facebook Ad Library URLs or profile links",
     chooseFromHistory: "Choose from history",
     noPreviousImports: "No previous imports",
     analyzingAds: "Analyzing competitor ads...",
@@ -199,7 +201,9 @@ const translations: Translations = {
     
     // Studio
     importAds: "Импорт рекламы конкурентов",
+    importCompetitorAds: "Импорт рекламы конкурентов",
     importAdsDesc: "Вставьте URL библиотеки рекламы Facebook или ссылки на профили",
+    pasteAdUrls: "Вставьте URL библиотеки рекламы Facebook или ссылки на профили",
     chooseFromHistory: "Выбрать из истории",
     noPreviousImports: "Нет предыдущих импортов",
     analyzingAds: "Анализ рекламы конкурентов...",
@@ -316,7 +320,9 @@ const translations: Translations = {
     
     // Studio
     importAds: "Konkurrenzanzeigen importieren",
+    importCompetitorAds: "Konkurrenzanzeigen importieren",
     importAdsDesc: "Facebook Ad Library URLs oder Profillinks einfügen",
+    pasteAdUrls: "Facebook Ad Library URLs oder Profillinks einfügen",
     chooseFromHistory: "Aus Historie wählen",
     noPreviousImports: "Keine vorherigen Importe",
     analyzingAds: "Konkurrenzanzeigen werden analysiert...",
@@ -433,7 +439,9 @@ const translations: Translations = {
     
     // Studio
     importAds: "Importuj reklamy konkurencji",
+    importCompetitorAds: "Importuj reklamy konkurencji",
     importAdsDesc: "Wklej URL-e biblioteki reklam Facebook lub linki do profili",
+    pasteAdUrls: "Wklej URL-e biblioteki reklam Facebook lub linki do profili",
     chooseFromHistory: "Wybierz z historii",
     noPreviousImports: "Brak poprzednich importów",
     analyzingAds: "Analiza reklam konkurencji...",
