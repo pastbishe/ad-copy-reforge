@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, Loader2, LogOut, Download, Copy, Sparkles } from "lucide-react";
+import { Loader2, LogOut, ChevronLeft, ChevronRight, Plus, X, Menu, User } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -13,30 +13,41 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Header } from "@/components/Header";
+import { motion, AnimatePresence } from "framer-motion";
+import { useDropzone } from "react-dropzone";
 import demoAd1 from "@/assets/demo-ad-1.jpg";
 import demoAd2 from "@/assets/demo-ad-2.jpg";
 
+type StudioState = "empty" | "loading" | "active";
+
+interface Ad {
+  id: number;
+  image: string;
+  title: string;
+  brand: string;
+  date: string;
+  format: string;
+}
+
 const Studio = () => {
   const [url, setUrl] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [studioState, setStudioState] = useState<StudioState>("empty");
   const [progress, setProgress] = useState(0);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [showEditor, setShowEditor] = useState(false);
-  const [selectedAd, setSelectedAd] = useState(0);
+  const [currentAdIndex, setCurrentAdIndex] = useState(0);
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
+  const [uploadedProducts, setUploadedProducts] = useState<File[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useLanguage();
 
-  const demoAds = [
-    { id: 1, image: demoAd1, title: "Smartwatch Ad" },
-    { id: 2, image: demoAd2, title: "Headphones Ad" }
+  const ads: Ad[] = [
+    { id: 1, image: demoAd1, title: "Smartwatch Ad", brand: "TechBrand", date: "2024-09-15", format: "1080x1080" },
+    { id: 2, image: demoAd2, title: "Headphones Ad", brand: "AudioCo", date: "2024-09-20", format: "1200x628" }
   ];
 
   useEffect(() => {
-    // Проверяем авторизацию
     const checkAuth = async () => {
-      // Проверяем demo пользователя
       const isDemoUser = localStorage.getItem("demo_user") === "true";
       
       if (isDemoUser) {
@@ -44,7 +55,6 @@ const Studio = () => {
         return;
       }
 
-      // Проверяем реальную сессию Supabase (с автоматическим сохранением)
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -62,16 +72,59 @@ const Studio = () => {
 
     checkAuth();
 
-    // Подписываемся на изменения авторизации для автоматического сохранения сессии
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' && !localStorage.getItem("demo_user")) {
         navigate("/login");
       }
-      // Событие SIGNED_IN автоматически сохранит сессию благодаря настройке persistSession: true
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, toast]);
+  }, [navigate, toast, t]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (studioState !== "active") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" && currentAdIndex > 0) {
+        setCurrentAdIndex(prev => prev - 1);
+      } else if (e.key === "ArrowRight" && currentAdIndex < ads.length - 1) {
+        setCurrentAdIndex(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [studioState, currentAdIndex, ads.length]);
+
+  const handleImport = () => {
+    if (!url) return;
+    
+    setStudioState("loading");
+    setProgress(0);
+    
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(interval);
+          return 95;
+        }
+        return prev + 5;
+      });
+    }, 250);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      setProgress(100);
+      setTimeout(() => {
+        setStudioState("active");
+        toast({
+          title: "Ads imported",
+          description: `Successfully scraped ${ads.length} competitor ads`,
+        });
+      }, 500);
+    }, 5000);
+  };
 
   const handleLogout = async () => {
     localStorage.removeItem("demo_user");
@@ -83,226 +136,312 @@ const Studio = () => {
     navigate("/");
   };
 
-  const handleImport = () => {
-    if (!url) return;
-    
-    setIsLoading(true);
-    setProgress(0);
-    
-    // Simulate scraping progress
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 95) {
-          clearInterval(interval);
-          return 95;
-        }
-        return prev + 5;
-      });
-    }, 250);
+  const onDrop = (acceptedFiles: File[]) => {
+    setUploadedProducts(prev => [...prev, ...acceptedFiles]);
+    toast({
+      title: "Upload complete",
+      description: `${acceptedFiles.length} product(s) added`,
+    });
+  };
 
-    // Stop after 5 seconds and show editor
-    setTimeout(() => {
-      clearInterval(interval);
-      setProgress(100);
-      setTimeout(() => {
-        setIsLoading(false);
-        setShowEditor(true);
-      }, 500);
-    }, 5000);
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.webp']
+    }
+  });
+
+  const removeProduct = (index: number) => {
+    setUploadedProducts(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleGenerate = () => {
+    toast({
+      title: "Generating variants",
+      description: "AI is creating your ad variations...",
+    });
   };
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <Loader2 className="w-8 h-8 animate-spin text-white" />
       </div>
     );
   }
 
-  if (showEditor) {
+  // STATE 1: EMPTY
+  if (studioState === "empty") {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <Header />
-        <div className="fixed top-16 right-4 z-40">
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            {t("logout")}
-          </Button>
-        </div>
-
-        <main className="flex-1 p-6 pt-24">
-          <div className="max-w-7xl mx-auto animate-fade-in">
-            <div className="mb-6">
-              <h1 className="text-3xl font-bold mb-2">Ad Studio</h1>
-              <p className="text-muted-foreground">Edit and generate variations of your competitor ads</p>
+      <div className="min-h-screen flex flex-col bg-black">
+        <main className="flex-1 flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="w-full max-w-md text-center"
+          >
+            <h1 className="text-4xl font-bold mb-8 text-white">
+              Import Competitor Ads
+            </h1>
+            
+            <Input
+              type="url"
+              placeholder="https://facebook.com/ads/library/..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="h-14 text-base mb-6 bg-[#1a1a1a] border-[#404040] text-white placeholder:text-[#a0a0a0]"
+              onKeyDown={(e) => e.key === 'Enter' && handleImport()}
+            />
+            
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex-1 h-px bg-[#404040]" />
+              <span className="text-sm text-[#a0a0a0]">or</span>
+              <div className="flex-1 h-px bg-[#404040]" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Ad Gallery */}
-              <div className="lg:col-span-1 space-y-4">
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    Imported Ads ({demoAds.length})
-                  </h3>
-                  <div className="space-y-3">
-                    {demoAds.map((ad, index) => (
-                      <div
-                        key={ad.id}
-                        className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
-                          selectedAd === index ? "border-primary" : "border-transparent hover:border-border"
-                        }`}
-                        onClick={() => setSelectedAd(index)}
-                      >
-                        <img
-                          src={ad.image}
-                          alt={ad.title}
-                          className="w-full aspect-square object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="absolute bottom-2 left-2 text-white text-sm font-medium">
-                            {ad.title}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+            <Select>
+              <SelectTrigger className="h-12 mb-6 bg-[#1a1a1a] border-[#404040] text-white">
+                <SelectValue placeholder="Choose from history" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1a1a1a] border-[#404040]">
+                <SelectItem value="none" className="text-white">No previous imports</SelectItem>
+              </SelectContent>
+            </Select>
 
-              {/* Main Editor */}
-              <div className="lg:col-span-2 space-y-4">
-                <div className="bg-card border border-border rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Preview</h3>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Copy className="w-4 h-4 mr-2" />
-                        Duplicate
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="bg-secondary/20 rounded-lg p-8 flex items-center justify-center">
-                    <img
-                      src={demoAds[selectedAd].image}
-                      alt={demoAds[selectedAd].title}
-                      className="max-w-full max-h-[500px] rounded-lg shadow-2xl"
-                    />
-                  </div>
-                </div>
-
-                {/* Tools */}
-                <div className="bg-card border border-border rounded-lg p-6">
-                  <h3 className="font-semibold mb-4">AI Tools</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button variant="outline" className="h-auto py-3 flex flex-col items-start gap-1">
-                      <span className="font-medium">Replace Product</span>
-                      <span className="text-xs text-muted-foreground">Upload your product image</span>
-                    </Button>
-                    <Button variant="outline" className="h-auto py-3 flex flex-col items-start gap-1">
-                      <span className="font-medium">Generate Variants</span>
-                      <span className="text-xs text-muted-foreground">Create multiple versions</span>
-                    </Button>
-                    <Button variant="outline" className="h-auto py-3 flex flex-col items-start gap-1">
-                      <span className="font-medium">Change Background</span>
-                      <span className="text-xs text-muted-foreground">AI background removal</span>
-                    </Button>
-                    <Button variant="outline" className="h-auto py-3 flex flex-col items-start gap-1">
-                      <span className="font-medium">Edit Text</span>
-                      <span className="text-xs text-muted-foreground">Modify ad copy</span>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            <Button 
+              variant="default" 
+              size="lg" 
+              className="w-full h-14 text-base font-medium bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white transition-all duration-300"
+              onClick={handleImport}
+              disabled={!url}
+            >
+              Import
+            </Button>
+          </motion.div>
         </main>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <div className="fixed top-16 right-4 z-40">
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
-          <LogOut className="w-4 h-4 mr-2" />
-          {t("logout")}
-        </Button>
-      </div>
-
-      <main className="flex-1 flex items-center justify-center p-6 pt-24 bg-background">
-        <div className="w-full max-w-3xl text-center fade-in">
-          {isLoading ? (
-            <div className="space-y-8">
-              <Loader2 className="w-16 h-16 mx-auto animate-spin text-primary" />
-              <div className="space-y-3">
-                <p className="text-2xl font-semibold">{t("analyzingAds")}</p>
-                <div className="w-full max-w-md mx-auto bg-secondary/30 rounded-full h-2 overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-300 ease-out"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">{progress}%</p>
+  // STATE 2: LOADING
+  if (studioState === "loading") {
+    return (
+      <div className="min-h-screen flex flex-col bg-black">
+        <main className="flex-1 flex items-center justify-center p-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center"
+          >
+            <motion.div
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="mb-8"
+            >
+              <Loader2 className="w-16 h-16 mx-auto animate-spin text-white" />
+            </motion.div>
+            
+            <h2 className="text-2xl font-semibold text-white mb-4">
+              Scraping competitor ads...
+            </h2>
+            
+            <div className="w-full max-w-md mx-auto mb-3">
+              <div className="h-1 bg-[#1a1a1a] rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-white"
+                  style={{ width: `${progress}%` }}
+                  transition={{ duration: 0.3 }}
+                />
               </div>
+            </div>
+            
+            <p className="text-sm text-[#a0a0a0]">{progress}%</p>
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
+
+  // STATE 3: ACTIVE STUDIO
+  return (
+    <div className="min-h-screen flex flex-col bg-black">
+      {/* Top Bar */}
+      <header className="h-[60px] bg-[#0a0a0a] border-b border-[#404040] flex items-center justify-between px-6">
+        <h1 className="text-xl font-bold text-white">COPY ADD</h1>
+        
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleLogout}
+            className="text-white hover:bg-[#1a1a1a]"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            {t("logout")}
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="text-white hover:bg-[#1a1a1a]"
+          >
+            <User className="w-5 h-5" />
+          </Button>
+        </div>
+      </header>
+
+      <div className="flex-1 flex relative">
+        {/* Left Panel */}
+        <motion.div
+          initial={false}
+          animate={{ width: isLeftPanelOpen ? 280 : 40 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          onMouseEnter={() => setIsLeftPanelOpen(true)}
+          onMouseLeave={() => setIsLeftPanelOpen(false)}
+          className="bg-[#1a1a1a] border-r border-[#404040] overflow-hidden relative z-10"
+        >
+          {!isLeftPanelOpen && (
+            <div className="h-full flex items-center justify-center">
+              <Menu className="w-5 h-5 text-[#a0a0a0]" />
+            </div>
+          )}
+          
+          <AnimatePresence>
+            {isLeftPanelOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="p-4 h-full overflow-y-auto"
+              >
+                <h3 className="text-sm font-semibold text-white mb-4">Competitor Ads ({ads.length})</h3>
+                
+                <div className="space-y-3">
+                  {ads.map((ad, index) => (
+                    <motion.div
+                      key={ad.id}
+                      whileHover={{ backgroundColor: "#2a2a2a" }}
+                      onClick={() => setCurrentAdIndex(index)}
+                      className={`cursor-pointer rounded-lg p-2 transition-all duration-300 ${
+                        currentAdIndex === index ? "border-2 border-white" : "border-2 border-transparent"
+                      }`}
+                    >
+                      <img
+                        src={ad.image}
+                        alt={ad.title}
+                        className="w-full aspect-square object-cover rounded mb-2"
+                      />
+                      <p className="text-sm font-medium text-white">{ad.brand}</p>
+                      <p className="text-xs text-[#a0a0a0]">{ad.date}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Center Canvas */}
+        <div className="flex-1 flex items-center justify-center relative group">
+          <div className="relative max-w-[800px]">
+            {/* Ad Info Overlay */}
+            <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-sm rounded px-3 py-2">
+              <p className="text-sm font-medium text-white">{ads[currentAdIndex].brand}</p>
+              <p className="text-xs text-[#a0a0a0]">{ads[currentAdIndex].format}</p>
+            </div>
+
+            {/* Main Ad Image */}
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={currentAdIndex}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                src={ads[currentAdIndex].image}
+                alt={ads[currentAdIndex].title}
+                className="w-full rounded-lg shadow-2xl"
+              />
+            </AnimatePresence>
+
+            {/* Navigation Arrows */}
+            {currentAdIndex > 0 && (
+              <motion.button
+                initial={{ opacity: 0 }}
+                whileHover={{ opacity: 1 }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all duration-300 opacity-0 group-hover:opacity-100"
+                onClick={() => setCurrentAdIndex(prev => prev - 1)}
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </motion.button>
+            )}
+
+            {currentAdIndex < ads.length - 1 && (
+              <motion.button
+                initial={{ opacity: 0 }}
+                whileHover={{ opacity: 1 }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all duration-300 opacity-0 group-hover:opacity-100"
+                onClick={() => setCurrentAdIndex(prev => prev + 1)}
+              >
+                <ChevronRight className="w-6 h-6" />
+              </motion.button>
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel - Upload Zone */}
+        <div className="w-[320px] bg-[#1a1a1a] border-l border-[#404040] p-6 flex flex-col">
+          {uploadedProducts.length === 0 ? (
+            <div
+              {...getRootProps()}
+              className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer transition-all duration-300 ${
+                isDragActive 
+                  ? "border-white bg-white/5" 
+                  : "border-[#404040] hover:border-[#606060]"
+              }`}
+            >
+              <input {...getInputProps()} />
+              <Plus className="w-16 h-16 text-white opacity-30 mb-4" />
+              <p className="text-[#a0a0a0] text-center">
+                {isDragActive ? "Drop files here" : "Add your product"}
+              </p>
             </div>
           ) : (
             <>
-              <div className="w-24 h-24 bg-secondary/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-8 border-2 border-border/50">
-                <ChevronDown className="w-12 h-12 text-muted-foreground" />
+              <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                {uploadedProducts.map((file, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative group"
+                  >
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      className="w-full aspect-square object-cover rounded-lg"
+                    />
+                    <button
+                      onClick={() => removeProduct(index)}
+                      className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  </motion.div>
+                ))}
               </div>
               
-              <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                {t("importCompetitorAds")}
-              </h2>
-              <p className="text-muted-foreground/80 mb-12 text-lg">
-                {t("pasteAdUrls")}
-              </p>
-
-              <div className="space-y-6">
-                <Input
-                  type="url"
-                  placeholder="https://facebook.com/ads/library/..."
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className="h-16 text-base bg-card/50 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all"
-                  onKeyDown={(e) => e.key === 'Enter' && handleImport()}
-                />
-                
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-                  <span className="text-sm text-muted-foreground/60 px-4">{t("or")}</span>
-                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-                </div>
-
-                <Select>
-                  <SelectTrigger className="h-14 bg-card/50 backdrop-blur-sm border-border/50">
-                    <SelectValue placeholder={t("chooseFromHistory")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{t("noPreviousImports")}</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Button 
-                  variant="default" 
-                  size="lg" 
-                  className="w-full h-14 text-base font-medium bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all"
-                  onClick={handleImport}
-                  disabled={!url}
-                >
-                  {t("importCompetitorAds")}
-                </Button>
-              </div>
+              <Button
+                onClick={handleGenerate}
+                className="w-full bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white h-12"
+              >
+                Generate
+              </Button>
             </>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 };
