@@ -27,9 +27,8 @@ export const Header = () => {
         </Link>
         <nav className="flex items-center gap-3">
           <Link to="/docs">
-            <Button variant="ghost" size="sm">
-              <FileText className="w-4 h-4 mr-2" />
-              {t("docs")}
+            <Button variant="ghost" size="icon" className="hover:bg-accent">
+              <FileText className="w-5 h-5" />
             </Button>
           </Link>
           <Select value={language} onValueChange={setLanguage}>
