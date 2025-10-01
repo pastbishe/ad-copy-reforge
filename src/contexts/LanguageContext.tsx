@@ -63,6 +63,8 @@ const translations: Translations = {
     fillAllFields: "Please fill all fields",
     error: "Error",
     success: "Success",
+    continueWithGoogle: "Continue with Google",
+    googleLoginError: "Failed to login with Google",
     
     // Verify Email
     verifyEmail: "Verify Email",
@@ -182,6 +184,8 @@ const translations: Translations = {
     fillAllFields: "Пожалуйста, заполните все поля",
     error: "Ошибка",
     success: "Успешно",
+    continueWithGoogle: "Продолжить через Google",
+    googleLoginError: "Не удалось войти через Google",
     
     // Verify Email
     verifyEmail: "Подтверждение Email",
@@ -301,6 +305,8 @@ const translations: Translations = {
     fillAllFields: "Bitte füllen Sie alle Felder aus",
     error: "Fehler",
     success: "Erfolg",
+    continueWithGoogle: "Mit Google fortfahren",
+    googleLoginError: "Anmeldung mit Google fehlgeschlagen",
     
     // Verify Email
     verifyEmail: "E-Mail bestätigen",
@@ -420,6 +426,8 @@ const translations: Translations = {
     fillAllFields: "Proszę wypełnić wszystkie pola",
     error: "Błąd",
     success: "Sukces",
+    continueWithGoogle: "Kontynuuj z Google",
+    googleLoginError: "Nie udało się zalogować przez Google",
     
     // Verify Email
     verifyEmail: "Zweryfikuj e-mail",
