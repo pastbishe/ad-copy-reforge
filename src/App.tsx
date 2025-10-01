@@ -6,6 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import HomeDesign1 from "./pages/HomeDesign1";
+import HomeDesign2 from "./pages/HomeDesign2";
+import HomeDesign3 from "./pages/HomeDesign3";
+import DesignPicker from "./pages/DesignPicker";
 import Studio from "./pages/Studio";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -27,7 +31,11 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={<DesignPicker />} />
+              <Route path="/home" element={<Home />} />
+              <Route path="/design1" element={<HomeDesign1 />} />
+              <Route path="/design2" element={<HomeDesign2 />} />
+              <Route path="/design3" element={<HomeDesign3 />} />
               <Route path="/studio" element={<Studio />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />

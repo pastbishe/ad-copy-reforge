@@ -1,21 +1,31 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { User, FileText, Moon, Sun } from "lucide-react";
+import { User, FileText, Moon, Sun, Monitor } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
+
+const LanguageFlag = ({ code }: { code: string }) => {
+  const flags: Record<string, string> = {
+    en: "🇬🇧",
+    ru: "🇷🇺",
+    de: "🇩🇪",
+    pl: "🇵🇱"
+  };
+  return <span className="text-lg mr-2">{flags[code]}</span>;
+};
 
 export const Header = () => {
   const { t, language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
 
   return (
-    <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm border-b border-border">
+    <header className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b border-border shadow-sm">
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-        <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">
+        <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent hover:opacity-80 transition-opacity">
           COPY ADD
         </Link>
-        <nav className="flex items-center gap-4">
+        <nav className="flex items-center gap-3">
           <Link to="/docs">
             <Button variant="ghost" size="sm">
               <FileText className="w-4 h-4 mr-2" />
@@ -23,21 +33,41 @@ export const Header = () => {
             </Button>
           </Link>
           <Select value={language} onValueChange={setLanguage}>
-            <SelectTrigger className="w-[100px]">
+            <SelectTrigger className="w-[130px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="en">EN</SelectItem>
-              <SelectItem value="ru">RU</SelectItem>
-              <SelectItem value="de">DE</SelectItem>
-              <SelectItem value="pl">PL</SelectItem>
+            <SelectContent className="bg-popover z-[100]">
+              <SelectItem value="en">
+                <div className="flex items-center">
+                  <LanguageFlag code="en" />
+                  <span>English</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="ru">
+                <div className="flex items-center">
+                  <LanguageFlag code="ru" />
+                  <span>Русский</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="de">
+                <div className="flex items-center">
+                  <LanguageFlag code="de" />
+                  <span>Deutsch</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="pl">
+                <div className="flex items-center">
+                  <LanguageFlag code="pl" />
+                  <span>Polski</span>
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
           <Select value={theme} onValueChange={setTheme}>
             <SelectTrigger className="w-[120px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover z-[100]">
               <SelectItem value="light">
                 <div className="flex items-center gap-2">
                   <Sun className="w-4 h-4" />
@@ -50,11 +80,16 @@ export const Header = () => {
                   {t("dark")}
                 </div>
               </SelectItem>
-              <SelectItem value="system">{t("system")}</SelectItem>
+              <SelectItem value="system">
+                <div className="flex items-center gap-2">
+                  <Monitor className="w-4 h-4" />
+                  {t("system")}
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
           <Link to="/profile">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="hover:bg-accent">
               <User className="w-4 h-4" />
             </Button>
           </Link>

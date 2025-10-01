@@ -8,34 +8,34 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Dark tech-forward design system - COPY ADD */
-    --background: 0 0% 0%; /* Pure black #000000 */
-    --foreground: 0 0% 100%; /* Pure white #ffffff */
+    /* Light theme - COPY ADD */
+    --background: 0 0% 100%; /* White */
+    --foreground: 0 0% 10%; /* Near black */
 
-    --card: 0 0% 10%; /* Dark gray #1a1a1a */
-    --card-foreground: 0 0% 100%;
+    --card: 0 0% 98%; /* Very light gray */
+    --card-foreground: 0 0% 10%;
 
-    --popover: 0 0% 10%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
 
-    --primary: 0 0% 100%; /* White for primary actions */
-    --primary-foreground: 0 0% 0%;
+    --primary: 262 83% 58%; /* Purple accent */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 25%; /* Medium gray #404040 */
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%; /* Light gray */
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 0 0% 20%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 0 0% 10%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 25%; /* Medium gray borders */
-    --input: 0 0% 15%;
-    --ring: 0 0% 40%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 262 83% 58%;
 
     --radius: 0.5rem;
 
@@ -43,7 +43,41 @@ All colors MUST be HSL.
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     
     /* Subtle glow effects */
-    --glow-subtle: 0 0 20px rgba(255, 255, 255, 0.1);
+    --glow-subtle: 0 0 20px rgba(139, 92, 246, 0.15);
+  }
+
+  .dark {
+    /* Dark tech-forward design system - COPY ADD */
+    --background: 0 0% 5%; /* Near black */
+    --foreground: 0 0% 100%; /* Pure white */
+
+    --card: 0 0% 10%; /* Dark gray */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 262 83% 58%; /* Purple accent */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 15%; /* Medium gray */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 262 83% 58%;
+
+    /* Subtle glow effects */
+    --glow-subtle: 0 0 20px rgba(139, 92, 246, 0.2);
   }
 }
 
