@@ -423,6 +423,24 @@ const Studio = () => {
               />
             </AnimatePresence>
 
+            {/* Add Product Button on Hover */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileHover={{ opacity: 1, x: 0 }}
+              className="absolute right-[-120px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300"
+            >
+              <Button
+                variant="default"
+                size="lg"
+                className="bg-white text-black hover:bg-white/90 shadow-xl"
+                {...getRootProps()}
+              >
+                <input {...getInputProps()} />
+                <Plus className="w-5 h-5 mr-2" />
+                Add your product
+              </Button>
+            </motion.div>
+
             {/* Navigation Arrows - Always Visible */}
             {currentAdIndex > 0 && (
               <motion.button
