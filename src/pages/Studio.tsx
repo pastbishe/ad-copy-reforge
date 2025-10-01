@@ -402,11 +402,7 @@ const Studio = () => {
         </motion.div>
 
         {/* Center Canvas */}
-        <div 
-          className="flex-1 flex items-center justify-center relative group"
-          onMouseEnter={() => setIsRightPanelVisible(true)}
-          onMouseLeave={() => setIsRightPanelVisible(false)}
-        >
+        <div className="flex-1 flex items-center justify-center relative group">
           <div className="relative max-w-[800px]">
             {/* Ad Info Overlay */}
             <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-sm rounded px-3 py-2">
@@ -448,6 +444,13 @@ const Studio = () => {
                 <ChevronRight className="w-7 h-7" />
               </motion.button>
             )}
+
+            {/* Right Side Trigger Zone */}
+            <div 
+              className="absolute -right-16 top-0 w-32 h-full z-10"
+              onMouseEnter={() => setIsRightPanelVisible(true)}
+              onMouseLeave={() => setIsRightPanelVisible(false)}
+            />
           </div>
         </div>
 
