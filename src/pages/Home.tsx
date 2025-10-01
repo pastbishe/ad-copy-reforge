@@ -1,36 +1,79 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Upload, Wand2, Download } from "lucide-react";
+import { Upload, Wand2, Download, User, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
-import heroBg from "@/assets/hero-bg.jpg";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const Home = () => {
+  const { t, language, setLanguage } = useLanguage();
+  const { theme, setTheme } = useTheme();
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
+      {/* Navigation */}
+      <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm border-b border-border">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+          <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">
+            COPY ADD
+          </Link>
+          <nav className="flex items-center gap-4">
+            <Link to="/docs">
+              <Button variant="ghost" size="sm">
+                <FileText className="w-4 h-4 mr-2" />
+                {t("docs")}
+              </Button>
+            </Link>
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">EN</SelectItem>
+                <SelectItem value="ru">RU</SelectItem>
+                <SelectItem value="de">DE</SelectItem>
+                <SelectItem value="pl">PL</SelectItem>
+              </SelectContent>
+            </Select>
+            <Link to="/profile">
+              <Button variant="ghost" size="icon">
+                <User className="w-4 h-4" />
+              </Button>
+            </Link>
+          </nav>
+        </div>
+      </header>
+
       {/* Hero Section */}
-      <section 
-        className="relative min-h-screen flex items-center justify-center overflow-hidden"
-        style={{
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.8)), url(${heroBg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      >
-        <div className="container mx-auto px-6 py-24 text-center fade-in">
-          <h1 className="text-6xl md:text-7xl font-bold mb-6 tracking-tight">
-            Turn any competitor's<br />Facebook ad into your ad
+      <section className="relative min-h-screen flex items-center justify-center text-white overflow-hidden pt-16">
+        <div className="absolute inset-0 z-0">
+          {/* Animated gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900" />
+          <div className="absolute inset-0 opacity-30">
+            <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" />
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+            <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
+          </div>
+          {/* Grid pattern overlay */}
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-20" />
+        </div>
+        
+        <div className="relative z-10 text-center px-6 max-w-4xl mx-auto fade-in">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6">
+            {t("heroTitle")}
           </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto">
-            Analyze winning ads. Adapt them to your product. Export ready-to-run creatives.
+          <p className="text-xl md:text-2xl mb-8 text-gray-200">
+            {t("heroSubtitle")}
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex gap-4 justify-center flex-wrap">
             <Link to="/signup">
-              <Button variant="hero" size="lg" className="text-lg">
-                Регистрация <ArrowRight className="ml-2" />
+              <Button size="lg" className="text-lg px-8 py-6 bg-white text-purple-900 hover:bg-gray-100">
+                {t("signup")}
               </Button>
             </Link>
             <Link to="/login">
-              <Button variant="ghost" size="lg" className="text-lg">
-                Войти
+              <Button variant="outline" size="lg" className="text-lg px-8 py-6 border-white text-white hover:bg-white/10">
+                {t("login")}
               </Button>
             </Link>
           </div>
@@ -38,35 +81,35 @@ const Home = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-24 border-t border-border">
-        <div className="container mx-auto px-6">
-          <h2 className="text-4xl font-bold text-center mb-16">How It Works</h2>
+      <section className="py-20 px-6 bg-muted/30">
+        <div className="container mx-auto max-w-6xl">
+          <h2 className="text-4xl font-bold text-center mb-16">{t("howItWorks")}</h2>
           <div className="grid md:grid-cols-3 gap-12">
-            <div className="text-center hover-scale">
-              <div className="w-16 h-16 bg-card rounded-lg flex items-center justify-center mx-auto mb-6 border border-border">
-                <Upload className="w-8 h-8" />
+            <div className="text-center fade-in hover-scale">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-primary">
+                <Upload className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Import Competitor Ads</h3>
-              <p className="text-muted-foreground">
-                Paste Facebook Ad Library URLs or profile links. We'll scrape and analyze the winning creatives.
+              <h3 className="text-2xl font-bold mb-4">{t("step1Title")}</h3>
+              <p className="text-muted-foreground text-lg">
+                {t("step1Desc")}
               </p>
             </div>
-            <div className="text-center hover-scale">
-              <div className="w-16 h-16 bg-card rounded-lg flex items-center justify-center mx-auto mb-6 border border-border">
-                <Wand2 className="w-8 h-8" />
+            <div className="text-center fade-in hover-scale" style={{ animationDelay: "0.1s" }}>
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-primary">
+                <Wand2 className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Upload Your Product</h3>
-              <p className="text-muted-foreground">
-                Drop in your product photos. Our AI adapts the competitor's creative strategy to your brand.
+              <h3 className="text-2xl font-bold mb-4">{t("step2Title")}</h3>
+              <p className="text-muted-foreground text-lg">
+                {t("step2Desc")}
               </p>
             </div>
-            <div className="text-center hover-scale">
-              <div className="w-16 h-16 bg-card rounded-lg flex items-center justify-center mx-auto mb-6 border border-border">
-                <Download className="w-8 h-8" />
+            <div className="text-center fade-in hover-scale" style={{ animationDelay: "0.2s" }}>
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-primary">
+                <Download className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Generate Variants</h3>
-              <p className="text-muted-foreground">
-                Export custom ad creatives ready to run. Multiple variants, formats, and styles in minutes.
+              <h3 className="text-2xl font-bold mb-4">{t("step3Title")}</h3>
+              <p className="text-muted-foreground text-lg">
+                {t("step3Desc")}
               </p>
             </div>
           </div>
@@ -74,30 +117,47 @@ const Home = () => {
       </section>
 
       {/* Why Different */}
-      <section className="py-24 bg-card border-t border-border">
-        <div className="container mx-auto px-6">
-          <h2 className="text-4xl font-bold text-center mb-8">Why Different</h2>
-          <p className="text-xl text-muted-foreground text-center max-w-3xl mx-auto mb-16">
-            Traditional ad creation tools start from scratch. COPY ADD starts from proven winners — 
-            competitor ads that are already converting — and transforms them for your product.
+      <section className="py-20 px-6">
+        <div className="container mx-auto max-w-5xl">
+          <h2 className="text-4xl font-bold text-center mb-6">{t("whyDifferent")}</h2>
+          <p className="text-center text-muted-foreground text-xl mb-12">
+            {t("whyDifferentDesc")}
           </p>
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <div className="p-6 bg-background rounded-lg border border-border">
-              <h3 className="text-lg font-semibold mb-3">Traditional Tools</h3>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>• Start with blank canvas</li>
-                <li>• Guess what works</li>
-                <li>• Generic templates</li>
-                <li>• No market insights</li>
+          
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="border border-border rounded-lg p-8 fade-in bg-card hover-scale">
+              <h3 className="text-2xl font-bold mb-6 text-center">{t("traditionalTools")}</h3>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3">
+                  <span className="text-destructive text-xl">✗</span>
+                  <span className="text-muted-foreground">{t("traditional1")}</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-destructive text-xl">✗</span>
+                  <span className="text-muted-foreground">{t("traditional2")}</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-destructive text-xl">✗</span>
+                  <span className="text-muted-foreground">{t("traditional3")}</span>
+                </li>
               </ul>
             </div>
-            <div className="p-6 bg-background rounded-lg border border-border">
-              <h3 className="text-lg font-semibold mb-3">COPY ADD</h3>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>• Start with proven winners</li>
-                <li>• Learn from competitors</li>
-                <li>• Custom adaptations</li>
-                <li>• Built-in market research</li>
+            
+            <div className="border-2 border-primary rounded-lg p-8 bg-primary/5 fade-in hover-scale" style={{ animationDelay: "0.1s" }}>
+              <h3 className="text-2xl font-bold mb-6 text-center">{t("copyAdd")}</h3>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3">
+                  <span className="text-primary text-xl">✓</span>
+                  <span>{t("copyAdd1")}</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary text-xl">✓</span>
+                  <span>{t("copyAdd2")}</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary text-xl">✓</span>
+                  <span>{t("copyAdd3")}</span>
+                </li>
               </ul>
             </div>
           </div>
@@ -105,21 +165,19 @@ const Home = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-12">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-2xl font-bold">COPY ADD</div>
-            <div className="flex gap-8">
-              <Link to="/docs" className="text-muted-foreground hover:text-foreground transition-colors">
-                Documentation
-              </Link>
-              <Link to="/legal/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
-                Privacy
-              </Link>
-              <Link to="/legal/terms" className="text-muted-foreground hover:text-foreground transition-colors">
-                Terms
-              </Link>
-            </div>
+      <footer className="border-t border-border py-8 px-6 bg-muted/30">
+        <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="text-2xl font-bold">COPY ADD</div>
+          <div className="flex gap-6">
+            <Link to="/docs" className="text-muted-foreground hover:text-foreground transition-colors">
+              {t("docs")}
+            </Link>
+            <Link to="/legal/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+              {t("privacy")}
+            </Link>
+            <Link to="/legal/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+              {t("terms")}
+            </Link>
           </div>
         </div>
       </footer>

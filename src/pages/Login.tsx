@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -13,6 +14,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +39,7 @@ const Login = () => {
       if (error) throw error;
 
       toast({
-        title: "Успешно!",
-        description: "Вы вошли в систему",
+        title: t("loginSuccess"),
       });
 
       navigate("/studio");
@@ -61,8 +62,7 @@ const Login = () => {
     localStorage.setItem("demo_user", "true");
     
     toast({
-      title: "Demo вход",
-      description: "Вы вошли в демо-режиме",
+      title: t("demoLogin"),
     });
     
     setTimeout(() => {
@@ -84,13 +84,13 @@ const Login = () => {
       <div className="flex items-center justify-center p-6 min-h-[calc(100vh-4rem)]">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Вход</CardTitle>
-            <CardDescription>Войдите в ваш аккаунт COPY ADD</CardDescription>
+            <CardTitle className="text-2xl font-bold">{t("login")}</CardTitle>
+            <CardDescription>{t("authRequiredDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("email")}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -101,11 +101,10 @@ const Login = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Пароль</Label>
+                <Label htmlFor="password">{t("password")}</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Введите пароль"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -114,10 +113,9 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                variant="hero"
                 disabled={isLoading}
               >
-                {isLoading ? "Вход..." : "Войти"}
+                {isLoading ? "..." : t("login")}
               </Button>
 
               <Button 
@@ -127,13 +125,13 @@ const Login = () => {
                 onClick={handleDemoLogin}
                 disabled={isLoading}
               >
-                Demo вход (тестирование)
+                {t("demoLogin")}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">
-                Нет аккаунта?{" "}
+                {t("noAccount")}{" "}
                 <Link to="/signup" className="underline underline-offset-4 hover:text-foreground">
-                  Зарегистрироваться
+                  {t("signup")}
                 </Link>
               </p>
             </form>

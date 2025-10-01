@@ -337,27 +337,39 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          balance: number | null
           created_at: string
           email: string | null
           full_name: string | null
           id: string
+          referral_code: string | null
+          referred_by: string | null
           updated_at: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
+          balance?: number | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id: string
+          referral_code?: string | null
+          referred_by?: string | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
+          balance?: number | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
+          referral_code?: string | null
+          referred_by?: string | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -849,6 +861,10 @@ export type Database = {
           input_role: Database["public"]["Enums"]["admin_role"]
           input_username: string
         }
+        Returns: string
+      }
+      generate_referral_code: {
+        Args: Record<PropertyKey, never>
         Returns: string
       }
       log_admin_action: {
