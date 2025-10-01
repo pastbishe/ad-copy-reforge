@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, LogOut, ChevronLeft, ChevronRight, Plus, X, Menu, User } from "lucide-react";
+import { Loader2, LogOut, ChevronLeft, ChevronRight, Plus, X, Menu, User, Sun, Moon, Monitor } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
 import demoAd1 from "@/assets/demo-ad-1.jpg";
@@ -39,7 +40,8 @@ const Studio = () => {
   const [uploadedProducts, setUploadedProducts] = useState<File[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
+  const { theme, setTheme } = useTheme();
 
   const ads: Ad[] = [
     { id: 1, image: demoAd1, title: "Smartwatch Ad", brand: "TechBrand", date: "2024-09-15", format: "1080x1080" },
@@ -270,7 +272,63 @@ const Studio = () => {
       <header className="h-[60px] bg-[#0a0a0a] border-b border-[#404040] flex items-center justify-between px-6">
         <h1 className="text-xl font-bold text-white">COPY ADD</h1>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Select value={language} onValueChange={setLanguage}>
+            <SelectTrigger className="w-[130px] bg-[#1a1a1a] border-[#404040] text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1a1a1a] border-[#404040] z-[100]">
+              <SelectItem value="en" className="text-white hover:bg-[#2a2a2a]">
+                <div className="flex items-center">
+                  <span className="text-lg mr-2">🇬🇧</span>
+                  <span>English</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="ru" className="text-white hover:bg-[#2a2a2a]">
+                <div className="flex items-center">
+                  <span className="text-lg mr-2">🇷🇺</span>
+                  <span>Русский</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="de" className="text-white hover:bg-[#2a2a2a]">
+                <div className="flex items-center">
+                  <span className="text-lg mr-2">🇩🇪</span>
+                  <span>Deutsch</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="pl" className="text-white hover:bg-[#2a2a2a]">
+                <div className="flex items-center">
+                  <span className="text-lg mr-2">🇵🇱</span>
+                  <span>Polski</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={theme} onValueChange={setTheme}>
+            <SelectTrigger className="w-[120px] bg-[#1a1a1a] border-[#404040] text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1a1a1a] border-[#404040] z-[100]">
+              <SelectItem value="light" className="text-white hover:bg-[#2a2a2a]">
+                <div className="flex items-center gap-2">
+                  <Sun className="w-4 h-4" />
+                  {t("light")}
+                </div>
+              </SelectItem>
+              <SelectItem value="dark" className="text-white hover:bg-[#2a2a2a]">
+                <div className="flex items-center gap-2">
+                  <Moon className="w-4 h-4" />
+                  {t("dark")}
+                </div>
+              </SelectItem>
+              <SelectItem value="system" className="text-white hover:bg-[#2a2a2a]">
+                <div className="flex items-center gap-2">
+                  <Monitor className="w-4 h-4" />
+                  {t("system")}
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -365,26 +423,42 @@ const Studio = () => {
               />
             </AnimatePresence>
 
-            {/* Navigation Arrows */}
+            {/* Add Product Button on Hover */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileHover={{ opacity: 1, x: 0 }}
+              className="absolute right-[-120px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300"
+            >
+              <Button
+                variant="default"
+                size="lg"
+                className="bg-white text-black hover:bg-white/90 shadow-xl"
+                {...getRootProps()}
+              >
+                <input {...getInputProps()} />
+                <Plus className="w-5 h-5 mr-2" />
+                Add your product
+              </Button>
+            </motion.div>
+
+            {/* Navigation Arrows - Always Visible */}
             {currentAdIndex > 0 && (
               <motion.button
-                initial={{ opacity: 0 }}
-                whileHover={{ opacity: 1 }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all duration-300 opacity-0 group-hover:opacity-100"
+                whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.3)" }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 border-2 border-white/40"
                 onClick={() => setCurrentAdIndex(prev => prev - 1)}
               >
-                <ChevronLeft className="w-6 h-6" />
+                <ChevronLeft className="w-7 h-7" />
               </motion.button>
             )}
 
             {currentAdIndex < ads.length - 1 && (
               <motion.button
-                initial={{ opacity: 0 }}
-                whileHover={{ opacity: 1 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all duration-300 opacity-0 group-hover:opacity-100"
+                whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.3)" }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 border-2 border-white/40"
                 onClick={() => setCurrentAdIndex(prev => prev + 1)}
               >
-                <ChevronRight className="w-6 h-6" />
+                <ChevronRight className="w-7 h-7" />
               </motion.button>
             )}
           </div>
