@@ -423,24 +423,6 @@ const Studio = () => {
               />
             </AnimatePresence>
 
-            {/* Add Product Button on Hover */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileHover={{ opacity: 1, x: 0 }}
-              className="absolute right-[-120px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300"
-            >
-              <Button
-                variant="default"
-                size="lg"
-                className="bg-white text-black hover:bg-white/90 shadow-xl"
-                {...getRootProps()}
-              >
-                <input {...getInputProps()} />
-                <Plus className="w-5 h-5 mr-2" />
-                Add your product
-              </Button>
-            </motion.div>
-
             {/* Navigation Arrows - Always Visible */}
             {currentAdIndex > 0 && (
               <motion.button
@@ -465,20 +447,24 @@ const Studio = () => {
         </div>
 
         {/* Right Panel - Upload Zone */}
-        <div className="w-[320px] bg-[#1a1a1a] border-l border-[#404040] p-6 flex flex-col">
+        <div className="w-[320px] bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] border-l border-[#404040] p-6 flex flex-col">
           {uploadedProducts.length === 0 ? (
             <div
               {...getRootProps()}
-              className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer transition-all duration-300 ${
+              className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 relative overflow-hidden group ${
                 isDragActive 
                   ? "border-white bg-white/5" 
                   : "border-[#404040] hover:border-[#606060]"
               }`}
             >
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
               <input {...getInputProps()} />
-              <Plus className="w-16 h-16 text-white opacity-30 mb-4" />
-              <p className="text-[#a0a0a0] text-center">
+              <Plus className="w-16 h-16 text-white opacity-30 mb-4 relative z-10 group-hover:scale-110 transition-transform" />
+              <p className="text-[#a0a0a0] text-center relative z-10 font-medium">
                 {isDragActive ? "Drop files here" : "Add your product"}
+              </p>
+              <p className="text-[#606060] text-sm text-center mt-2 relative z-10">
+                Drag & drop or click to upload
               </p>
             </div>
           ) : (
