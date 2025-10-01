@@ -18,12 +18,12 @@ const Home = () => {
           <img 
             src={heroBg} 
             alt="Hero background" 
-            className="w-full h-full object-cover opacity-20"
+            className="w-full h-full object-cover opacity-10"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent" />
         </div>
         
-        <div className="relative z-10 text-center px-6 max-w-5xl mx-auto fade-in">
+        <div className="relative z-10 text-center px-6 max-w-5xl mx-auto fade-in" style={{ animation: 'fade-in 0.6s ease-out' }}>
           <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-6 backdrop-blur-sm">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium">AI-Powered Ad Creation</span>
@@ -69,19 +69,19 @@ const Home = () => {
 
       {/* How It Works */}
       <section className="py-24 px-6 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/3 to-transparent" />
         <div className="container mx-auto max-w-6xl relative z-10">
-          <h2 className="text-5xl font-bold text-center mb-20">{t("howItWorks")}</h2>
+          <h2 className="text-5xl font-bold text-center mb-20 fade-in" style={{ animation: 'fade-in 0.6s ease-out' }}>{t("howItWorks")}</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
               { icon: Upload, title: t("step1Title"), desc: t("step1Desc"), color: "from-blue-500 to-purple-500" },
               { icon: Wand2, title: t("step2Title"), desc: t("step2Desc"), color: "from-purple-500 to-pink-500" },
               { icon: Download, title: t("step3Title"), desc: t("step3Desc"), color: "from-pink-500 to-orange-500" }
             ].map((step, i) => (
-              <div key={i} className="relative group">
+              <div key={i} className="relative group fade-in" style={{ animation: `fade-in 0.6s ease-out ${0.2 * (i + 1)}s both` }}>
                 <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl blur-xl" 
                      style={{ background: `linear-gradient(to bottom right, var(--primary), var(--accent))` }} />
-                <div className="relative bg-card border border-border rounded-2xl p-8 hover:border-primary/50 transition-all hover:shadow-xl hover:shadow-primary/10">
+                <div className="relative bg-card border border-border rounded-2xl p-8 hover:border-primary/30 transition-all hover:shadow-lg hover:shadow-primary/5">
                   <div className={`w-16 h-16 bg-gradient-to-br ${step.color} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}>
                     <step.icon className="w-8 h-8 text-white" />
                   </div>
@@ -100,9 +100,9 @@ const Home = () => {
       </section>
 
       {/* Why Different */}
-      <section className="py-24 px-6 bg-gradient-to-br from-primary/5 to-accent/5">
+      <section className="py-24 px-6 bg-gradient-to-br from-primary/3 to-accent/3">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16 fade-in" style={{ animation: 'fade-in 0.6s ease-out' }}>
             <h2 className="text-5xl font-bold mb-6">{t("whyDifferent")}</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               {t("whyDifferentDesc")}
@@ -110,7 +110,7 @@ const Home = () => {
           </div>
           
           <div className="grid md:grid-cols-2 gap-8">
-            <div className="border border-destructive/30 rounded-2xl p-10 bg-card/50 backdrop-blur">
+            <div className="border border-destructive/20 rounded-2xl p-10 bg-card/50 backdrop-blur fade-in" style={{ animation: 'fade-in 0.6s ease-out 0.2s both' }}>
               <h3 className="text-3xl font-bold mb-8 text-center flex items-center justify-center gap-3">
                 <span className="text-destructive">✗</span>
                 {t("traditionalTools")}
@@ -125,7 +125,7 @@ const Home = () => {
               </ul>
             </div>
             
-            <div className="border-2 border-primary rounded-2xl p-10 bg-gradient-to-br from-primary/10 to-accent/10 backdrop-blur relative overflow-hidden">
+            <div className="border-2 border-primary/50 rounded-2xl p-10 bg-gradient-to-br from-primary/5 to-accent/5 backdrop-blur relative overflow-hidden fade-in" style={{ animation: 'fade-in 0.6s ease-out 0.4s both' }}>
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
               <h3 className="text-3xl font-bold mb-8 text-center flex items-center justify-center gap-3 relative z-10">
                 <TrendingUp className="text-primary" />
@@ -145,8 +145,8 @@ const Home = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-10 px-6 bg-card/50 backdrop-blur">
-        <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <footer className="border-t border-border py-8 px-6 bg-card/30 backdrop-blur">
+        <div className="container mx-auto max-w-4xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             COPY ADD
           </div>

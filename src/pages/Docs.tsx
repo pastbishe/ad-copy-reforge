@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Header } from "@/components/Header";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Docs = () => {
   const { t } = useLanguage();
@@ -35,6 +37,12 @@ const Docs = () => {
         {/* Content */}
         <main className="flex-1 p-12">
           <div className="max-w-3xl">
+            <Link to="/">
+              <Button variant="ghost" size="sm" className="mb-6">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Home
+              </Button>
+            </Link>
             <h1 className="text-4xl font-bold mb-8">Documentation</h1>
             
             <div className="prose prose-invert max-w-none space-y-8">

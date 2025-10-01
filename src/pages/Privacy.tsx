@@ -1,11 +1,19 @@
 import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Privacy = () => {
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      <header className="border-b border-border bg-card/30 backdrop-blur">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">COPY ADD</Link>
+          <Link to="/">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+          </Link>
         </div>
       </header>
 
