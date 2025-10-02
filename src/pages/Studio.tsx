@@ -39,6 +39,7 @@ const Studio = () => {
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
   const [uploadedProducts, setUploadedProducts] = useState<File[]>([]);
+  const [isHoveringImage, setIsHoveringImage] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t, language, setLanguage } = useLanguage();
@@ -278,7 +279,7 @@ const Studio = () => {
             <SelectTrigger className="w-[130px] bg-[#1a1a1a] border-[#404040] text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-[#1a1a1a] border-[#404040] z-[100]">
+            <SelectContent className="bg-[#1a1a1a] border-[#404040]" sideOffset={5}>
               <SelectItem value="en" className="text-white hover:bg-[#2a2a2a]">
                 <div className="flex items-center">
                   <span className="text-lg mr-2">🇬🇧</span>
@@ -309,7 +310,7 @@ const Studio = () => {
             <SelectTrigger className="w-[120px] bg-[#1a1a1a] border-[#404040] text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-[#1a1a1a] border-[#404040] z-[100]">
+            <SelectContent className="bg-[#1a1a1a] border-[#404040]" sideOffset={5}>
               <SelectItem value="light" className="text-white hover:bg-[#2a2a2a]">
                 <div className="flex items-center gap-2">
                   <Sun className="w-4 h-4" />
@@ -402,8 +403,16 @@ const Studio = () => {
         </motion.div>
 
         {/* Center Canvas */}
-        <div className="flex-1 flex items-center justify-center relative group">
-          <div className="relative max-w-[800px]">
+        <div className="flex-1 flex items-center justify-center relative">
+          <motion.div 
+            className="relative w-[70%] h-[80%] flex items-center justify-center"
+            onMouseEnter={() => setIsHoveringImage(true)}
+            onMouseLeave={() => setIsHoveringImage(false)}
+            animate={{ 
+              width: isRightPanelVisible ? "60%" : "70%",
+            }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+          >
             {/* Ad Info Overlay */}
             <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-sm rounded px-3 py-2">
               <p className="text-sm font-medium text-white">{ads[currentAdIndex].brand}</p>
@@ -420,102 +429,107 @@ const Studio = () => {
                 transition={{ duration: 0.3 }}
                 src={ads[currentAdIndex].image}
                 alt={ads[currentAdIndex].title}
-                className="w-full rounded-lg shadow-2xl"
+                className="w-full h-full object-contain rounded-lg shadow-2xl"
               />
             </AnimatePresence>
 
-            {/* Navigation Arrows - Always Visible */}
-            {currentAdIndex > 0 && (
-              <motion.button
-                whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.3)" }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 border-2 border-white/40"
-                onClick={() => setCurrentAdIndex(prev => prev - 1)}
-              >
-                <ChevronLeft className="w-7 h-7" />
-              </motion.button>
-            )}
+            {/* Navigation Arrows - Show on Hover */}
+            <AnimatePresence>
+              {isHoveringImage && currentAdIndex > 0 && (
+                <motion.button
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.3)" }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 border-2 border-white/40"
+                  onClick={() => setCurrentAdIndex(prev => prev - 1)}
+                >
+                  <ChevronLeft className="w-7 h-7" />
+                </motion.button>
+              )}
 
-            {currentAdIndex < ads.length - 1 && (
-              <motion.button
-                whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.3)" }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 border-2 border-white/40"
-                onClick={() => setCurrentAdIndex(prev => prev + 1)}
-              >
-                <ChevronRight className="w-7 h-7" />
-              </motion.button>
-            )}
+              {isHoveringImage && currentAdIndex < ads.length - 1 && (
+                <motion.button
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.3)" }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 border-2 border-white/40"
+                  onClick={() => setCurrentAdIndex(prev => prev + 1)}
+                >
+                  <ChevronRight className="w-7 h-7" />
+                </motion.button>
+              )}
+            </AnimatePresence>
 
-            {/* Right Side Trigger Zone */}
-            <div 
-              className="absolute -right-16 top-0 w-32 h-full z-10"
+            {/* Right Panel - Slides from Image */}
+            <motion.div
+              initial={{ x: "100%", opacity: 0 }}
+              animate={{ 
+                x: isRightPanelVisible ? "0%" : "100%",
+                opacity: isRightPanelVisible ? 1 : 0
+              }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
               onMouseEnter={() => setIsRightPanelVisible(true)}
               onMouseLeave={() => setIsRightPanelVisible(false)}
-            />
-          </div>
+              className="absolute right-0 top-0 h-full w-[40%] bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] border-l border-[#404040] p-6 flex flex-col backdrop-blur-sm shadow-2xl rounded-r-lg"
+            >
+              {uploadedProducts.length === 0 ? (
+                <div
+                  {...getRootProps()}
+                  className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 relative overflow-hidden group ${
+                    isDragActive 
+                      ? "border-white bg-white/5" 
+                      : "border-[#404040] hover:border-[#606060]"
+                  }`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <input {...getInputProps()} />
+                  <Plus className="w-16 h-16 text-white opacity-30 mb-4 relative z-10 group-hover:scale-110 transition-transform" />
+                  <p className="text-[#a0a0a0] text-center relative z-10 font-medium">
+                    {isDragActive ? "Drop files here" : "Add your product"}
+                  </p>
+                  <p className="text-[#606060] text-sm text-center mt-2 relative z-10">
+                    Drag & drop or click to upload
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                    {uploadedProducts.map((file, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative group"
+                      >
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={file.name}
+                          className="w-full aspect-square object-cover rounded-lg"
+                        />
+                        <button
+                          onClick={() => removeProduct(index)}
+                          className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-4 h-4 text-white" />
+                        </button>
+                      </motion.div>
+                    ))}
+                  </div>
+                  
+                  <Button
+                    onClick={handleGenerate}
+                    className="w-full bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white h-12"
+                  >
+                    Generate
+                  </Button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
         </div>
 
-        {/* Right Panel - Upload Zone */}
-        <motion.div
-          initial={{ x: "100%" }}
-          animate={{ x: isRightPanelVisible ? 0 : "100%" }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          onMouseEnter={() => setIsRightPanelVisible(true)}
-          onMouseLeave={() => setIsRightPanelVisible(false)}
-          className="absolute right-0 top-0 h-full w-[320px] bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] border-l border-[#404040] p-6 flex flex-col backdrop-blur-sm z-20 shadow-2xl"
-        >
-          {uploadedProducts.length === 0 ? (
-            <div
-              {...getRootProps()}
-              className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 relative overflow-hidden group ${
-                isDragActive 
-                  ? "border-white bg-white/5" 
-                  : "border-[#404040] hover:border-[#606060]"
-              }`}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <input {...getInputProps()} />
-              <Plus className="w-16 h-16 text-white opacity-30 mb-4 relative z-10 group-hover:scale-110 transition-transform" />
-              <p className="text-[#a0a0a0] text-center relative z-10 font-medium">
-                {isDragActive ? "Drop files here" : "Add your product"}
-              </p>
-              <p className="text-[#606060] text-sm text-center mt-2 relative z-10">
-                Drag & drop or click to upload
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-                {uploadedProducts.map((file, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative group"
-                  >
-                    <img
-                      src={URL.createObjectURL(file)}
-                      alt={file.name}
-                      className="w-full aspect-square object-cover rounded-lg"
-                    />
-                    <button
-                      onClick={() => removeProduct(index)}
-                      className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-4 h-4 text-white" />
-                    </button>
-                  </motion.div>
-                ))}
-              </div>
-              
-              <Button
-                onClick={handleGenerate}
-                className="w-full bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white h-12"
-              >
-                Generate
-              </Button>
-            </>
-          )}
-        </motion.div>
       </div>
     </div>
   );
