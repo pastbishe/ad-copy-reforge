@@ -279,7 +279,7 @@ const Studio = () => {
             <SelectTrigger className="w-[130px] bg-[#1a1a1a] border-[#404040] text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-[#1a1a1a] border-[#404040]" sideOffset={5}>
+            <SelectContent className="bg-[#1a1a1a] border-[#404040] z-[100]" position="popper" sideOffset={5}>
               <SelectItem value="en" className="text-white hover:bg-[#2a2a2a]">
                 <div className="flex items-center">
                   <span className="text-lg mr-2">🇬🇧</span>
@@ -310,7 +310,7 @@ const Studio = () => {
             <SelectTrigger className="w-[120px] bg-[#1a1a1a] border-[#404040] text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-[#1a1a1a] border-[#404040]" sideOffset={5}>
+            <SelectContent className="bg-[#1a1a1a] border-[#404040] z-[100]" position="popper" sideOffset={5}>
               <SelectItem value="light" className="text-white hover:bg-[#2a2a2a]">
                 <div className="flex items-center gap-2">
                   <Sun className="w-4 h-4" />
