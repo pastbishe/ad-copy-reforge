@@ -168,8 +168,8 @@ const Studio = () => {
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <Loader2 className="w-8 h-8 animate-spin text-white" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-foreground" />
       </div>
     );
   }
@@ -177,7 +177,7 @@ const Studio = () => {
   // STATE 1: EMPTY
   if (studioState === "empty") {
     return (
-      <div className="min-h-screen flex flex-col bg-black">
+      <div className="min-h-screen flex flex-col bg-background">
         <main className="flex-1 flex items-center justify-center p-6">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -185,7 +185,7 @@ const Studio = () => {
             transition={{ duration: 0.5 }}
             className="w-full max-w-md text-center"
           >
-            <h1 className="text-4xl font-bold mb-8 text-white">
+            <h1 className="text-4xl font-bold mb-8 text-foreground">
               Import Competitor Ads
             </h1>
             
@@ -194,29 +194,29 @@ const Studio = () => {
               placeholder="https://facebook.com/ads/library/..."
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="h-14 text-base mb-6 bg-[#1a1a1a] border-[#404040] text-white placeholder:text-[#a0a0a0]"
+              className="h-14 text-base mb-6 bg-card border-border text-foreground placeholder:text-muted-foreground"
               onKeyDown={(e) => e.key === 'Enter' && handleImport()}
             />
             
             <div className="flex items-center gap-4 mb-6">
-              <div className="flex-1 h-px bg-[#404040]" />
-              <span className="text-sm text-[#a0a0a0]">or</span>
-              <div className="flex-1 h-px bg-[#404040]" />
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-sm text-muted-foreground">or</span>
+              <div className="flex-1 h-px bg-border" />
             </div>
 
             <Select>
-              <SelectTrigger className="h-12 mb-6 bg-[#1a1a1a] border-[#404040] text-white">
+              <SelectTrigger className="h-12 mb-6 bg-card border-border text-foreground">
                 <SelectValue placeholder="Choose from history" />
               </SelectTrigger>
-              <SelectContent className="bg-[#1a1a1a] border-[#404040]">
-                <SelectItem value="none" className="text-white">No previous imports</SelectItem>
+              <SelectContent className="bg-card border-border">
+                <SelectItem value="none" className="text-foreground">No previous imports</SelectItem>
               </SelectContent>
             </Select>
 
             <Button 
-              variant="default" 
+              variant="secondary" 
               size="lg" 
-              className="w-full h-14 text-base font-medium bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white transition-all duration-300"
+              className="w-full h-14 text-base font-medium"
               onClick={handleImport}
               disabled={!url}
             >
@@ -231,7 +231,7 @@ const Studio = () => {
   // STATE 2: LOADING
   if (studioState === "loading") {
     return (
-      <div className="min-h-screen flex flex-col bg-black">
+      <div className="min-h-screen flex flex-col bg-background">
         <main className="flex-1 flex items-center justify-center p-6">
           <motion.div
             initial={{ opacity: 0 }}
@@ -243,24 +243,24 @@ const Studio = () => {
               transition={{ duration: 2, repeat: Infinity }}
               className="mb-8"
             >
-              <Loader2 className="w-16 h-16 mx-auto animate-spin text-white" />
+              <Loader2 className="w-16 h-16 mx-auto animate-spin text-foreground" />
             </motion.div>
             
-            <h2 className="text-2xl font-semibold text-white mb-4">
+            <h2 className="text-2xl font-semibold text-foreground mb-4">
               Scraping competitor ads...
             </h2>
             
             <div className="w-full max-w-md mx-auto mb-3">
-              <div className="h-1 bg-[#1a1a1a] rounded-full overflow-hidden">
+              <div className="h-1 bg-muted rounded-full overflow-hidden">
                 <motion.div 
-                  className="h-full bg-white"
+                  className="h-full bg-primary"
                   style={{ width: `${progress}%` }}
                   transition={{ duration: 0.3 }}
                 />
               </div>
             </div>
             
-            <p className="text-sm text-[#a0a0a0]">{progress}%</p>
+            <p className="text-sm text-muted-foreground">{progress}%</p>
           </motion.div>
         </main>
       </div>
@@ -268,37 +268,43 @@ const Studio = () => {
   }
 
   // STATE 3: ACTIVE STUDIO
+  const getThemeIcon = () => {
+    if (theme === "light") return <Sun className="w-4 h-4" />;
+    if (theme === "dark") return <Moon className="w-4 h-4" />;
+    return <Monitor className="w-4 h-4" />;
+  };
+
   return (
-    <div className="h-screen flex flex-col bg-black overflow-hidden">
-      {/* Top Bar */}
-      <header className="h-[60px] bg-[#0a0a0a] border-b border-[#404040] flex items-center justify-between px-6 flex-shrink-0">
-        <h1 className="text-xl font-bold text-white">COPY ADD</h1>
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Top Bar - Adaptive Height */}
+      <header style={{ height: "clamp(3.5rem, 5vh, 4rem)" }} className="bg-card border-b border-border flex items-center justify-between px-[clamp(1rem,3vw,1.5rem)] flex-shrink-0">
+        <h1 style={{ fontSize: "clamp(1.125rem, 1.5vw, 1.25rem)" }} className="font-bold text-foreground">COPY ADD</h1>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-[clamp(0.5rem,1vw,0.75rem)]">
           <Select value={language} onValueChange={setLanguage}>
-            <SelectTrigger className="w-[130px] bg-[#1a1a1a] border-[#404040] text-white">
+            <SelectTrigger style={{ width: "clamp(7rem, 10vw, 8.125rem)" }} className="bg-secondary border-border text-foreground">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-[#1a1a1a] border-[#404040] z-[100]" position="popper" sideOffset={5}>
-              <SelectItem value="en" className="text-white hover:bg-[#2a2a2a]">
+            <SelectContent className="bg-popover border-border z-[100]" position="popper" sideOffset={5}>
+              <SelectItem value="en" className="text-foreground hover:bg-accent">
                 <div className="flex items-center">
                   <span className="text-lg mr-2">🇬🇧</span>
                   <span>English</span>
                 </div>
               </SelectItem>
-              <SelectItem value="ru" className="text-white hover:bg-[#2a2a2a]">
+              <SelectItem value="ru" className="text-foreground hover:bg-accent">
                 <div className="flex items-center">
                   <span className="text-lg mr-2">🇷🇺</span>
                   <span>Русский</span>
                 </div>
               </SelectItem>
-              <SelectItem value="de" className="text-white hover:bg-[#2a2a2a]">
+              <SelectItem value="de" className="text-foreground hover:bg-accent">
                 <div className="flex items-center">
                   <span className="text-lg mr-2">🇩🇪</span>
                   <span>Deutsch</span>
                 </div>
               </SelectItem>
-              <SelectItem value="pl" className="text-white hover:bg-[#2a2a2a]">
+              <SelectItem value="pl" className="text-foreground hover:bg-accent">
                 <div className="flex items-center">
                   <span className="text-lg mr-2">🇵🇱</span>
                   <span>Polski</span>
@@ -307,23 +313,26 @@ const Studio = () => {
             </SelectContent>
           </Select>
           <Select value={theme} onValueChange={setTheme}>
-            <SelectTrigger className="w-[120px] bg-[#1a1a1a] border-[#404040] text-white">
-              <SelectValue />
+            <SelectTrigger style={{ width: "clamp(6.5rem, 9vw, 7.5rem)" }} className="bg-secondary border-border text-foreground">
+              <div className="flex items-center gap-2">
+                {getThemeIcon()}
+                <span className="capitalize">{theme}</span>
+              </div>
             </SelectTrigger>
-            <SelectContent className="bg-[#1a1a1a] border-[#404040] z-[100]" position="popper" sideOffset={5}>
-              <SelectItem value="light" className="text-white hover:bg-[#2a2a2a]">
+            <SelectContent className="bg-popover border-border z-[100]" position="popper" sideOffset={5}>
+              <SelectItem value="light" className="text-foreground hover:bg-accent">
                 <div className="flex items-center gap-2">
                   <Sun className="w-4 h-4" />
                   {t("light")}
                 </div>
               </SelectItem>
-              <SelectItem value="dark" className="text-white hover:bg-[#2a2a2a]">
+              <SelectItem value="dark" className="text-foreground hover:bg-accent">
                 <div className="flex items-center gap-2">
                   <Moon className="w-4 h-4" />
                   {t("dark")}
                 </div>
               </SelectItem>
-              <SelectItem value="system" className="text-white hover:bg-[#2a2a2a]">
+              <SelectItem value="system" className="text-foreground hover:bg-accent">
                 <div className="flex items-center gap-2">
                   <Monitor className="w-4 h-4" />
                   {t("system")}
@@ -335,34 +344,36 @@ const Studio = () => {
             variant="ghost" 
             size="sm" 
             onClick={handleLogout}
-            className="text-white hover:bg-[#1a1a1a]"
+            className="text-foreground hover:bg-accent"
+            style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)", padding: "clamp(0.375rem, 0.8vw, 0.5rem) clamp(0.75rem, 1.5vw, 1rem)" }}
           >
-            <LogOut className="w-4 h-4 mr-2" />
+            <LogOut style={{ width: "clamp(1rem, 1.2vw, 1.25rem)", height: "clamp(1rem, 1.2vw, 1.25rem)" }} className="mr-2" />
             {t("logout")}
           </Button>
           <Button 
             variant="ghost" 
             size="icon"
-            className="text-white hover:bg-[#1a1a1a]"
+            className="text-foreground hover:bg-accent"
+            style={{ width: "clamp(2.25rem, 3vw, 2.5rem)", height: "clamp(2.25rem, 3vw, 2.5rem)" }}
           >
-            <User className="w-5 h-5" />
+            <User style={{ width: "clamp(1.125rem, 1.5vw, 1.25rem)", height: "clamp(1.125rem, 1.5vw, 1.25rem)" }} />
           </Button>
         </div>
       </header>
 
       <div className="flex-1 flex relative overflow-hidden">
-        {/* Left Panel */}
+        {/* Left Panel - Adaptive Width */}
         <motion.div
           initial={false}
-          animate={{ width: isLeftPanelOpen ? 280 : 40 }}
+          animate={{ width: isLeftPanelOpen ? "clamp(15rem, 20vw, 17.5rem)" : "clamp(2.5rem, 3vw, 2.75rem)" }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
           onMouseEnter={() => setIsLeftPanelOpen(true)}
           onMouseLeave={() => setIsLeftPanelOpen(false)}
-          className="bg-[#1a1a1a] border-r border-[#404040] overflow-hidden relative z-10"
+          className="bg-card border-r border-border overflow-hidden relative z-10"
         >
           {!isLeftPanelOpen && (
             <div className="h-full flex items-center justify-center">
-              <Menu className="w-5 h-5 text-[#a0a0a0]" />
+              <Menu style={{ width: "clamp(1.125rem, 1.5vw, 1.25rem)", height: "clamp(1.125rem, 1.5vw, 1.25rem)" }} className="text-muted-foreground" />
             </div>
           )}
           
@@ -373,18 +384,22 @@ const Studio = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="p-4 h-full overflow-y-auto"
+                style={{ padding: "clamp(0.75rem, 1.5vw, 1rem)" }}
+                className="h-full overflow-y-auto"
               >
-                <h3 className="text-sm font-semibold text-white mb-4">Competitor Ads ({ads.length})</h3>
+                <h3 style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }} className="font-semibold text-foreground mb-[clamp(0.75rem,1.5vh,1rem)]">
+                  Competitor Ads ({ads.length})
+                </h3>
                 
-                <div className="space-y-3">
+                <div style={{ gap: "clamp(0.5rem, 1vh, 0.75rem)" }} className="flex flex-col">
                   {ads.map((ad, index) => (
                     <motion.div
                       key={ad.id}
-                      whileHover={{ backgroundColor: "#2a2a2a" }}
+                      whileHover={{ scale: 1.02 }}
                       onClick={() => setCurrentAdIndex(index)}
-                      className={`cursor-pointer rounded-lg p-2 transition-all duration-300 ${
-                        currentAdIndex === index ? "border-2 border-white" : "border-2 border-transparent"
+                      style={{ padding: "clamp(0.375rem, 0.8vw, 0.5rem)" }}
+                      className={`cursor-pointer rounded-lg transition-all duration-300 ${
+                        currentAdIndex === index ? "border-2 border-primary bg-accent/50" : "border-2 border-transparent hover:bg-accent/30"
                       }`}
                     >
                       <img
@@ -392,8 +407,8 @@ const Studio = () => {
                         alt={ad.title}
                         className="w-full aspect-square object-cover rounded mb-2"
                       />
-                      <p className="text-sm font-medium text-white">{ad.brand}</p>
-                      <p className="text-xs text-[#a0a0a0]">{ad.date}</p>
+                      <p style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }} className="font-medium text-foreground">{ad.brand}</p>
+                      <p style={{ fontSize: "clamp(0.75rem, 0.9vw, 0.875rem)" }} className="text-muted-foreground">{ad.date}</p>
                     </motion.div>
                   ))}
                 </div>
@@ -402,21 +417,35 @@ const Studio = () => {
           </AnimatePresence>
         </motion.div>
 
-        {/* Center Canvas */}
+        {/* Center Canvas - Adaptive Sizing */}
         <div className="flex-1 flex items-center justify-center relative">
           <motion.div 
-            className="relative w-[70%] h-[80%] flex items-center justify-center"
-            onMouseEnter={() => setIsHoveringImage(true)}
-            onMouseLeave={() => setIsHoveringImage(false)}
-            animate={{ 
-              width: isRightPanelVisible ? "60%" : "70%",
+            style={{ 
+              width: isRightPanelVisible ? "calc(100% - clamp(18rem, 30vw, 25rem))" : "clamp(60%, 75vw, 80%)",
+              height: "clamp(70%, 85vh, 90%)"
+            }}
+            className="relative flex items-center justify-center"
+            onMouseEnter={() => {
+              setIsHoveringImage(true);
+              setIsRightPanelVisible(true);
+            }}
+            onMouseLeave={() => {
+              setIsHoveringImage(false);
+              setIsRightPanelVisible(false);
             }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
           >
-            {/* Ad Info Overlay */}
-            <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-sm rounded px-3 py-2">
-              <p className="text-sm font-medium text-white">{ads[currentAdIndex].brand}</p>
-              <p className="text-xs text-[#a0a0a0]">{ads[currentAdIndex].format}</p>
+            {/* Ad Info Overlay - Adaptive */}
+            <div 
+              style={{ 
+                top: "clamp(0.75rem, 2vh, 1rem)", 
+                left: "clamp(0.75rem, 2vw, 1rem)",
+                padding: "clamp(0.5rem, 1vw, 0.75rem) clamp(0.75rem, 1.5vw, 1rem)"
+              }} 
+              className="absolute z-10 bg-background/80 backdrop-blur-sm rounded border border-border"
+            >
+              <p style={{ fontSize: "clamp(0.875rem, 1.2vw, 1rem)" }} className="font-medium text-foreground">{ads[currentAdIndex].brand}</p>
+              <p style={{ fontSize: "clamp(0.75rem, 1vw, 0.875rem)" }} className="text-muted-foreground">{ads[currentAdIndex].format}</p>
             </div>
 
             {/* Main Ad Image */}
@@ -433,18 +462,23 @@ const Studio = () => {
               />
             </AnimatePresence>
 
-            {/* Navigation Arrows - Show on Hover */}
+            {/* Navigation Arrows - Adaptive Size */}
             <AnimatePresence>
               {isHoveringImage && currentAdIndex > 0 && (
                 <motion.button
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.3)" }}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 border-2 border-white/40"
+                  whileHover={{ scale: 1.1 }}
+                  style={{ 
+                    left: "clamp(0.75rem, 2vw, 1rem)",
+                    width: "clamp(3rem, 4vw, 4rem)",
+                    height: "clamp(3rem, 4vw, 4rem)"
+                  }}
+                  className="absolute top-1/2 -translate-y-1/2 bg-background/60 backdrop-blur-sm rounded-full flex items-center justify-center text-foreground shadow-lg transition-all duration-300 border-2 border-border hover:bg-accent"
                   onClick={() => setCurrentAdIndex(prev => prev - 1)}
                 >
-                  <ChevronLeft className="w-7 h-7" />
+                  <ChevronLeft style={{ width: "clamp(1.5rem, 2vw, 2rem)", height: "clamp(1.5rem, 2vw, 2rem)" }} />
                 </motion.button>
               )}
 
@@ -453,49 +487,66 @@ const Studio = () => {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.3)" }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 border-2 border-white/40"
+                  whileHover={{ scale: 1.1 }}
+                  style={{ 
+                    right: "clamp(0.75rem, 2vw, 1rem)",
+                    width: "clamp(3rem, 4vw, 4rem)",
+                    height: "clamp(3rem, 4vw, 4rem)"
+                  }}
+                  className="absolute top-1/2 -translate-y-1/2 bg-background/60 backdrop-blur-sm rounded-full flex items-center justify-center text-foreground shadow-lg transition-all duration-300 border-2 border-border hover:bg-accent"
                   onClick={() => setCurrentAdIndex(prev => prev + 1)}
                 >
-                  <ChevronRight className="w-7 h-7" />
+                  <ChevronRight style={{ width: "clamp(1.5rem, 2vw, 2rem)", height: "clamp(1.5rem, 2vw, 2rem)" }} />
                 </motion.button>
               )}
             </AnimatePresence>
 
-            {/* Right Panel - Slides from Image */}
+            {/* Right Panel - Compact & Slides from Image on Hover */}
             <motion.div
-              initial={{ x: "100%", opacity: 0 }}
+              initial={{ x: "100%", opacity: 0.3 }}
               animate={{ 
-                x: isRightPanelVisible ? "0%" : "100%",
-                opacity: isRightPanelVisible ? 1 : 0
+                x: isRightPanelVisible ? "0%" : "calc(100% - clamp(3rem, 5vw, 4rem))",
+                opacity: isRightPanelVisible ? 1 : 0.3,
+                width: isRightPanelVisible ? "clamp(18rem, 30vw, 25rem)" : "clamp(3rem, 5vw, 4rem)"
               }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
               onMouseEnter={() => setIsRightPanelVisible(true)}
               onMouseLeave={() => setIsRightPanelVisible(false)}
-              className="absolute right-0 top-0 h-full w-[40%] bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] border-l border-[#404040] p-6 flex flex-col backdrop-blur-sm shadow-2xl rounded-r-lg"
+              style={{ padding: isRightPanelVisible ? "clamp(1rem, 2vw, 1.5rem)" : "clamp(0.5rem, 1vw, 0.75rem)" }}
+              className="absolute right-0 top-0 h-full bg-card/95 border-l border-border flex flex-col backdrop-blur-sm shadow-2xl rounded-r-lg overflow-hidden"
             >
               {uploadedProducts.length === 0 ? (
                 <div
                   {...getRootProps()}
-                  className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 relative overflow-hidden group ${
+                  className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 relative overflow-hidden group ${
                     isDragActive 
-                      ? "border-white bg-white/5" 
-                      : "border-[#404040] hover:border-[#606060]"
+                      ? "border-primary bg-accent/20" 
+                      : "border-border hover:border-primary/50"
                   }`}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <input {...getInputProps()} />
-                  <Plus className="w-16 h-16 text-white opacity-30 mb-4 relative z-10 group-hover:scale-110 transition-transform" />
-                  <p className="text-[#a0a0a0] text-center relative z-10 font-medium">
-                    {isDragActive ? "Drop files here" : "Add your product"}
-                  </p>
-                  <p className="text-[#606060] text-sm text-center mt-2 relative z-10">
-                    Drag & drop or click to upload
-                  </p>
+                  <Plus 
+                    style={{ 
+                      width: isRightPanelVisible ? "clamp(2.5rem, 4vw, 3rem)" : "clamp(1.5rem, 2.5vw, 2rem)",
+                      height: isRightPanelVisible ? "clamp(2.5rem, 4vw, 3rem)" : "clamp(1.5rem, 2.5vw, 2rem)"
+                    }}
+                    className="text-muted-foreground opacity-50 mb-2 relative z-10 group-hover:scale-110 group-hover:opacity-80 transition-all" 
+                  />
+                  {isRightPanelVisible && (
+                    <>
+                      <p style={{ fontSize: "clamp(0.875rem, 1vw, 1rem)" }} className="text-muted-foreground text-center relative z-10 font-medium">
+                        {isDragActive ? "Drop here" : "Add Product"}
+                      </p>
+                      <p style={{ fontSize: "clamp(0.75rem, 0.9vw, 0.875rem)" }} className="text-muted-foreground/70 text-sm text-center mt-1 relative z-10">
+                        Drag & drop or click
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <>
-                  <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                  <div style={{ gap: "clamp(0.5rem, 1vh, 0.75rem)", marginBottom: "clamp(0.75rem, 1.5vh, 1rem)" }} className="flex-1 overflow-y-auto flex flex-col">
                     {uploadedProducts.map((file, index) => (
                       <motion.div
                         key={index}
@@ -510,9 +561,15 @@ const Studio = () => {
                         />
                         <button
                           onClick={() => removeProduct(index)}
-                          className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ 
+                            width: "clamp(1.5rem, 2vw, 1.75rem)", 
+                            height: "clamp(1.5rem, 2vw, 1.75rem)",
+                            top: "clamp(0.375rem, 0.8vw, 0.5rem)",
+                            right: "clamp(0.375rem, 0.8vw, 0.5rem)"
+                          }}
+                          className="absolute bg-destructive/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
                         >
-                          <X className="w-4 h-4 text-white" />
+                          <X style={{ width: "clamp(1rem, 1.2vw, 1.125rem)", height: "clamp(1rem, 1.2vw, 1.125rem)" }} className="text-destructive-foreground" />
                         </button>
                       </motion.div>
                     ))}
@@ -520,7 +577,9 @@ const Studio = () => {
                   
                   <Button
                     onClick={handleGenerate}
-                    className="w-full bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white h-12"
+                    variant="default"
+                    style={{ height: "clamp(2.75rem, 4vh, 3rem)", fontSize: "clamp(0.875rem, 1vw, 1rem)" }}
+                    className="w-full"
                   >
                     Generate
                   </Button>
