@@ -128,6 +128,8 @@ const translations: Translations = {
     lightTheme: "Light",
     darkTheme: "Dark",
     systemTheme: "System",
+    snakeGame: "Snake Animation",
+    enableSnake: "Enable retro snake animation",
     
     // Studio specific
     competitorAds: "Competitor Ads",
@@ -144,6 +146,9 @@ const translations: Translations = {
     dropHere: "Drop here",
     generate: "Generate",
     import: "Import",
+    enterPrompt: "Write your prompt",
+    selectAll: "Select All",
+    selected: "Selected",
     
     // Home page stats
     activeUsers: "Active Users",
@@ -269,6 +274,8 @@ const translations: Translations = {
     lightTheme: "Светлая",
     darkTheme: "Темная",
     systemTheme: "Системная",
+    snakeGame: "Анимация змейки",
+    enableSnake: "Включить ретро-анимацию змейки",
     
     // Studio specific
     competitorAds: "Реклама конкурентов",
@@ -285,6 +292,9 @@ const translations: Translations = {
     dropHere: "Отпустите здесь",
     generate: "Создать",
     import: "Импорт",
+    enterPrompt: "Напишите ваш промпт",
+    selectAll: "Выбрать все",
+    selected: "Выбрано",
     
     // Home page stats
     activeUsers: "Активных пользователей",
@@ -410,6 +420,8 @@ const translations: Translations = {
     lightTheme: "Hell",
     darkTheme: "Dunkel",
     systemTheme: "System",
+    snakeGame: "Schlangen-Animation",
+    enableSnake: "Retro-Schlangenanimation aktivieren",
     
     // Studio specific
     competitorAds: "Konkurrenzanzeigen",
@@ -426,6 +438,9 @@ const translations: Translations = {
     dropHere: "Hier ablegen",
     generate: "Erstellen",
     import: "Importieren",
+    enterPrompt: "Schreiben Sie Ihren Prompt",
+    selectAll: "Alle auswählen",
+    selected: "Ausgewählt",
     
     // Home page stats
     activeUsers: "Aktive Benutzer",
@@ -551,6 +566,8 @@ const translations: Translations = {
     lightTheme: "Jasny",
     darkTheme: "Ciemny",
     systemTheme: "Systemowy",
+    snakeGame: "Animacja węża",
+    enableSnake: "Włącz retro animację węża",
     
     // Studio specific
     competitorAds: "Reklamy konkurencji",
@@ -567,6 +584,9 @@ const translations: Translations = {
     dropHere: "Upuść tutaj",
     generate: "Generuj",
     import: "Importuj",
+    enterPrompt: "Napisz swój prompt",
+    selectAll: "Zaznacz wszystkie",
+    selected: "Zaznaczone",
     
     // Home page stats
     activeUsers: "Aktywni użytkownicy",

@@ -1,0 +1,5 @@
+<svg width="800" height="800" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="800" fill="#14B8A6"/>
+  <text x="400" y="400" font-family="Arial" font-size="48" fill="white" text-anchor="middle">Travel Gear</text>
+  <text x="400" y="450" font-family="Arial" font-size="32" fill="#CCFBF1" text-anchor="middle">AdventureX</text>
+</svg>

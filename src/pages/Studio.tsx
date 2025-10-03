@@ -2,7 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, LogOut, ChevronLeft, ChevronRight, Plus, X, Menu, User, Sun, Moon, Monitor } from "lucide-react";
+import { SnakeGame } from "@/components/SnakeGame";
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 import {
   Select,
   SelectContent,
@@ -18,6 +21,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useDropzone } from "react-dropzone";
 import demoAd1 from "@/assets/demo-ad-1.jpg";
 import demoAd2 from "@/assets/demo-ad-2.jpg";
+import demoAd3 from "@/assets/demo-ad-3.svg";
+import demoAd4 from "@/assets/demo-ad-4.svg";
+import demoAd5 from "@/assets/demo-ad-5.svg";
+import demoAd6 from "@/assets/demo-ad-6.svg";
+import demoAd7 from "@/assets/demo-ad-7.svg";
+import demoAd8 from "@/assets/demo-ad-8.svg";
+import demoAd9 from "@/assets/demo-ad-9.svg";
+import demoAd10 from "@/assets/demo-ad-10.svg";
 
 type StudioState = "empty" | "loading" | "active";
 
@@ -28,7 +39,27 @@ interface Ad {
   brand: string;
   date: string;
   format: string;
+  selected: boolean;
+  individualPrompt?: string;
+  settings?: {
+    brightness: number;
+    contrast: number;
+    saturation: number;
+  };
 }
+
+const initialAds: Ad[] = [
+  { id: 1, image: demoAd1, title: "Smartwatch Ad", brand: "TechBrand", date: "2024-09-15", format: "1080x1080", selected: false, individualPrompt: "", settings: { brightness: 100, contrast: 100, saturation: 100 } },
+  { id: 2, image: demoAd2, title: "Headphones Ad", brand: "AudioCo", date: "2024-09-20", format: "1200x628", selected: false, individualPrompt: "", settings: { brightness: 100, contrast: 100, saturation: 100 } },
+  { id: 3, image: demoAd3, title: "Fashion Ad", brand: "StyleCo", date: "2024-09-22", format: "1080x1080", selected: false, individualPrompt: "", settings: { brightness: 100, contrast: 100, saturation: 100 } },
+  { id: 4, image: demoAd4, title: "Tech Gadget", brand: "InnovateTech", date: "2024-09-23", format: "1200x628", selected: false, individualPrompt: "", settings: { brightness: 100, contrast: 100, saturation: 100 } },
+  { id: 5, image: demoAd5, title: "Fitness Gear", brand: "FitLife", date: "2024-09-24", format: "1080x1080", selected: false, individualPrompt: "", settings: { brightness: 100, contrast: 100, saturation: 100 } },
+  { id: 6, image: demoAd6, title: "Home Decor", brand: "HomePlus", date: "2024-09-25", format: "1200x628", selected: false, individualPrompt: "", settings: { brightness: 100, contrast: 100, saturation: 100 } },
+  { id: 7, image: demoAd7, title: "Beauty Product", brand: "BeautyBox", date: "2024-09-26", format: "1080x1080", selected: false, individualPrompt: "", settings: { brightness: 100, contrast: 100, saturation: 100 } },
+  { id: 8, image: demoAd8, title: "Gaming Setup", brand: "GameZone", date: "2024-09-27", format: "1200x628", selected: false, individualPrompt: "", settings: { brightness: 100, contrast: 100, saturation: 100 } },
+  { id: 9, image: demoAd9, title: "Food & Drink", brand: "TastyCo", date: "2024-09-28", format: "1080x1080", selected: false, individualPrompt: "", settings: { brightness: 100, contrast: 100, saturation: 100 } },
+  { id: 10, image: demoAd10, title: "Travel Gear", brand: "AdventureX", date: "2024-09-29", format: "1200x628", selected: false, individualPrompt: "", settings: { brightness: 100, contrast: 100, saturation: 100 } }
+];
 
 const Studio = () => {
   const [url, setUrl] = useState("");
@@ -37,18 +68,134 @@ const Studio = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
   const [uploadedProducts, setUploadedProducts] = useState<File[]>([]);
+  const [promptText, setPromptText] = useState("");
   const [isHoveringImage, setIsHoveringImage] = useState(false);
+  const [showIndividualPrompt, setShowIndividualPrompt] = useState(false);
+  const [snakeEnabled, setSnakeEnabled] = useState(() => {
+    const saved = localStorage.getItem("snake_enabled");
+    return saved === null ? true : saved === "true";
+  });
+  const [ads, setAds] = useState<Ad[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t, language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
 
-  const ads: Ad[] = [
-    { id: 1, image: demoAd1, title: "Smartwatch Ad", brand: "TechBrand", date: "2024-09-15", format: "1080x1080" },
-    { id: 2, image: demoAd2, title: "Headphones Ad", brand: "AudioCo", date: "2024-09-20", format: "1200x628" }
-  ];
+  const toggleSnake = (checked: boolean) => {
+    setSnakeEnabled(checked);
+    localStorage.setItem("snake_enabled", String(checked));
+    window.location.reload();
+  };
+
+  // Загрузка из localStorage
+  useEffect(() => {
+    if (studioState === "active") {
+      const savedGeneralPrompt = localStorage.getItem("studio_general_prompt");
+      const savedAdsData = localStorage.getItem("studio_ads_data");
+      
+      if (savedGeneralPrompt) {
+        setPromptText(savedGeneralPrompt);
+      }
+      
+      if (savedAdsData) {
+        try {
+          const parsedAds = JSON.parse(savedAdsData);
+          if (Array.isArray(parsedAds) && parsedAds.length > 0) {
+            setAds(parsedAds);
+          } else if (ads.length === 0) {
+            setAds(initialAds);
+          }
+        } catch (e) {
+          console.error("Failed to load saved ads data");
+          if (ads.length === 0) {
+            setAds(initialAds);
+          }
+        }
+      } else if (ads.length === 0) {
+        setAds(initialAds);
+      }
+    }
+  }, [studioState]);
+
+  // Сохранение общего промпта
+  useEffect(() => {
+    if (studioState === "active") {
+      localStorage.setItem("studio_general_prompt", promptText);
+    }
+  }, [promptText, studioState]);
+
+  // Сохранение данных ads
+  useEffect(() => {
+    if (studioState === "active" && ads.length > 0) {
+      localStorage.setItem("studio_ads_data", JSON.stringify(ads));
+    }
+  }, [ads, studioState]);
+
+  const updateIndividualPrompt = (adId: number, prompt: string) => {
+    setAds(prev => prev.map(ad => 
+      ad.id === adId ? { ...ad, individualPrompt: prompt } : ad
+    ));
+  };
+
+  const updateAdSettings = (adId: number, setting: keyof NonNullable<Ad['settings']>, value: number) => {
+    setAds(prev => prev.map(ad => 
+      ad.id === adId ? { 
+        ...ad, 
+        settings: { ...ad.settings!, [setting]: value } 
+      } : ad
+    ));
+  };
+
+  const toggleAdSelection = (id: number) => {
+    setAds(prev => {
+      const newAds = prev.map(ad => 
+        ad.id === id ? { ...ad, selected: !ad.selected } : ad
+      );
+      
+      const clickedAd = newAds.find(ad => ad.id === id);
+      const newSelectedCount = newAds.filter(ad => ad.selected).length;
+      
+      if (newSelectedCount === 0) {
+        setCurrentAdIndex(0);
+      } else if (selectedCount > 0 && clickedAd && !clickedAd.selected) {
+        const currentDisplayedAd = displayedAds[currentAdIndex];
+        const selectedAds = newAds.filter(ad => ad.selected);
+        
+        if (currentDisplayedAd && currentDisplayedAd.id === id) {
+          setCurrentAdIndex(0);
+        } else if (currentDisplayedAd) {
+          const newIndex = selectedAds.findIndex(ad => ad.id === currentDisplayedAd.id);
+          if (newIndex !== -1) {
+            setCurrentAdIndex(newIndex);
+          } else {
+            setCurrentAdIndex(0);
+          }
+        }
+      }
+      
+      return newAds;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allSelected = ads.every(ad => ad.selected);
+    setAds(prev => prev.map(ad => ({ ...ad, selected: !allSelected })));
+    if (allSelected) {
+      setCurrentAdIndex(0);
+    }
+  };
+
+  const selectedCount = ads.filter(ad => ad.selected).length;
+  const displayedAds = selectedCount > 0 ? ads.filter(ad => ad.selected) : ads;
+  
+  useEffect(() => {
+    if (currentAdIndex >= displayedAds.length && displayedAds.length > 0) {
+      setCurrentAdIndex(displayedAds.length - 1);
+    }
+  }, [currentAdIndex, displayedAds.length]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -85,21 +232,22 @@ const Studio = () => {
     return () => subscription.unsubscribe();
   }, [navigate, toast, t]);
 
-  // Keyboard navigation
   useEffect(() => {
     if (studioState !== "active") return;
+
+    const displayedLength = selectedCount > 0 ? ads.filter(ad => ad.selected).length : ads.length;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft" && currentAdIndex > 0) {
         setCurrentAdIndex(prev => prev - 1);
-      } else if (e.key === "ArrowRight" && currentAdIndex < ads.length - 1) {
+      } else if (e.key === "ArrowRight" && currentAdIndex < displayedLength - 1) {
         setCurrentAdIndex(prev => prev + 1);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [studioState, currentAdIndex, ads.length]);
+  }, [studioState, currentAdIndex, ads, selectedCount]);
 
   const handleImport = () => {
     if (!url) return;
@@ -121,10 +269,16 @@ const Studio = () => {
       clearInterval(interval);
       setProgress(100);
       setTimeout(() => {
+        // Сброс всех промптов и настроек при импорте новых фотографий
+        localStorage.removeItem("studio_general_prompt");
+        localStorage.removeItem("studio_ads_data");
+        setPromptText("");
+        
         setStudioState("active");
+        setAds(initialAds);
         toast({
           title: t("adsImported"),
-          description: `${t("successfullyScraped")} ${ads.length} ${t("competitorAdsCount")}`,
+          description: `${t("successfullyScraped")} ${initialAds.length} ${t("competitorAdsCount")}`,
         });
       }, 500);
     }, 5000);
@@ -174,7 +328,6 @@ const Studio = () => {
     );
   }
 
-  // STATE 1: EMPTY
   if (studioState === "empty") {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -228,7 +381,6 @@ const Studio = () => {
     );
   }
 
-  // STATE 2: LOADING
   if (studioState === "loading") {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -267,7 +419,6 @@ const Studio = () => {
     );
   }
 
-  // STATE 3: ACTIVE STUDIO
   const getThemeIcon = () => {
     if (theme === "light") return <Sun className="w-4 h-4" />;
     if (theme === "dark") return <Moon className="w-4 h-4" />;
@@ -276,9 +427,11 @@ const Studio = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* Top Bar - Adaptive Height */}
       <header style={{ height: "clamp(3.5rem, 5vh, 4rem)" }} className="bg-card border-b border-border flex items-center justify-between px-[clamp(1rem,3vw,1.5rem)] flex-shrink-0">
-        <h1 style={{ fontSize: "clamp(1.125rem, 1.5vw, 1.25rem)" }} className="font-bold text-foreground">COPY ADD</h1>
+        <div className="flex items-center gap-4">
+          <AnimatedLogo />
+          <SnakeGame />
+        </div>
         
         <div className="flex items-center gap-[clamp(0.5rem,1vw,0.75rem)]">
           <Select value={language} onValueChange={setLanguage}>
@@ -340,6 +493,21 @@ const Studio = () => {
               </SelectItem>
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-2 bg-secondary px-3 py-2 rounded-md border border-border hidden md:flex">
+            <Checkbox 
+              id="snake-toggle" 
+              checked={snakeEnabled}
+              onCheckedChange={toggleSnake}
+            />
+            <label 
+              htmlFor="snake-toggle" 
+              className="text-sm text-foreground cursor-pointer select-none"
+              style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }}
+              title={t("enableSnake")}
+            >
+              🐍
+            </label>
+          </div>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -362,7 +530,6 @@ const Studio = () => {
       </header>
 
       <div className="flex-1 flex relative overflow-hidden">
-        {/* Left Panel - Adaptive Width */}
         <motion.div
           initial={false}
           animate={{ width: isLeftPanelOpen ? "clamp(15rem, 20vw, 17.5rem)" : "clamp(2.5rem, 3vw, 2.75rem)" }}
@@ -384,40 +551,92 @@ const Studio = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                style={{ padding: "clamp(0.75rem, 1.5vw, 1rem)" }}
-                className="h-full overflow-y-auto"
+                className="h-full flex flex-col"
               >
-                <h3 style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }} className="font-semibold text-foreground mb-[clamp(0.75rem,1.5vh,1rem)]">
-                  {t("competitorAds")} ({ads.length})
-                </h3>
+                <div style={{ padding: "clamp(0.75rem, 1.5vw, 1rem)" }} className="flex items-center justify-between">
+                  <h3 style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }} className="font-semibold text-foreground">
+                    {t("competitorAds")} ({ads.length})
+                  </h3>
+                </div>
                 
-                <div style={{ gap: "clamp(0.5rem, 1vh, 0.75rem)" }} className="flex flex-col">
-                  {ads.map((ad, index) => (
-                    <motion.div
-                      key={ad.id}
-                      whileHover={{ scale: 1.02 }}
-                      onClick={() => setCurrentAdIndex(index)}
-                      style={{ padding: "clamp(0.375rem, 0.8vw, 0.5rem)" }}
-                      className={`cursor-pointer rounded-lg transition-all duration-300 ${
-                        currentAdIndex === index ? "border-2 border-primary bg-accent/50" : "border-2 border-transparent hover:bg-accent/30"
-                      }`}
-                    >
-                      <img
-                        src={ad.image}
-                        alt={ad.title}
-                        className="w-full aspect-square object-cover rounded mb-2"
-                      />
-                      <p style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }} className="font-medium text-foreground">{ad.brand}</p>
-                      <p style={{ fontSize: "clamp(0.75rem, 0.9vw, 0.875rem)" }} className="text-muted-foreground">{ad.date}</p>
-                    </motion.div>
-                  ))}
+                <div 
+                  className={`flex items-center gap-2 p-2 mx-[clamp(0.75rem,1.5vw,1rem)] mb-3 bg-accent/30 rounded-lg ${
+                    selectedCount > 0 ? "sticky top-0 z-10 shadow-md" : ""
+                  }`}
+                  style={{ 
+                    backgroundColor: selectedCount > 0 ? "hsl(var(--accent))" : "hsl(var(--accent) / 0.3)"
+                  }}
+                >
+                  <Checkbox 
+                    id="select-all"
+                    checked={ads.length > 0 && ads.every(ad => ad.selected)}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <label 
+                    htmlFor="select-all" 
+                    style={{ fontSize: "clamp(0.75rem, 0.9vw, 0.875rem)" }}
+                    className="text-foreground cursor-pointer select-none flex-1"
+                  >
+                    {t("selectAll")}
+                  </label>
+                  <span 
+                    style={{ fontSize: "clamp(0.75rem, 0.9vw, 0.875rem)" }}
+                    className="text-muted-foreground font-medium"
+                  >
+                    {t("selected")}: {selectedCount}
+                  </span>
+                </div>
+                
+                <div style={{ padding: "0 clamp(0.75rem, 1.5vw, 1rem) clamp(0.75rem, 1.5vw, 1rem)" }} className="flex-1 overflow-y-auto">
+                
+                  <div style={{ gap: "clamp(0.5rem, 1vh, 0.75rem)" }} className="flex flex-col">
+                    {ads.map((ad, allAdsIndex) => {
+                      const displayedIndex = displayedAds.findIndex(dispAd => dispAd.id === ad.id);
+                      const isCurrentlyDisplayed = displayedIndex !== -1 && displayedIndex === currentAdIndex;
+                      
+                      return (
+                        <motion.div
+                          key={ad.id}
+                          whileHover={{ scale: 1.02 }}
+                          style={{ padding: "clamp(0.375rem, 0.8vw, 0.5rem)" }}
+                          className={`rounded-lg transition-all duration-300 relative cursor-pointer ${
+                            isCurrentlyDisplayed ? "border-2 border-primary bg-accent/50" : "border-2 border-transparent hover:bg-accent/30"
+                          }`}
+                          onClick={() => {
+                            toggleAdSelection(ad.id);
+                            if (ad.selected || selectedCount === 0) {
+                              const newDisplayedAds = selectedCount === 0 ? ads : ads.filter(a => a.selected || a.id === ad.id);
+                              const newIndex = newDisplayedAds.findIndex(a => a.id === ad.id);
+                              if (newIndex !== -1) {
+                                setCurrentAdIndex(newIndex);
+                              }
+                            }
+                          }}
+                        >
+                          <img
+                            src={ad.image}
+                            alt={ad.title}
+                            className="w-full aspect-square object-cover rounded mb-2 pointer-events-none"
+                          />
+                          <p style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }} className="font-medium text-foreground pointer-events-none">{ad.brand}</p>
+                          <p style={{ fontSize: "clamp(0.75rem, 0.9vw, 0.875rem)" }} className="text-muted-foreground pointer-events-none">{ad.date}</p>
+                          
+                          <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm rounded p-1 pointer-events-none">
+                            <Checkbox 
+                              checked={ad.selected}
+                              className="pointer-events-none"
+                            />
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </motion.div>
 
-        {/* Center Canvas - Adaptive Sizing */}
         <div className="flex-1 flex items-center justify-center relative">
           <motion.div 
             style={{ 
@@ -429,7 +648,6 @@ const Studio = () => {
             onMouseLeave={() => setIsHoveringImage(false)}
             transition={{ duration: 0.3, ease: "easeInOut" }}
           >
-            {/* Ad Info Overlay - Adaptive */}
             <div 
               style={{ 
                 top: "clamp(0.75rem, 2vh, 1rem)", 
@@ -438,32 +656,39 @@ const Studio = () => {
               }} 
               className="absolute z-10 bg-background/80 backdrop-blur-sm rounded border border-border"
             >
-              <p style={{ fontSize: "clamp(0.875rem, 1.2vw, 1rem)" }} className="font-medium text-foreground">{ads[currentAdIndex].brand}</p>
-              <p style={{ fontSize: "clamp(0.75rem, 1vw, 0.875rem)" }} className="text-muted-foreground">{ads[currentAdIndex].format}</p>
+              <p style={{ fontSize: "clamp(0.875rem, 1.2vw, 1rem)" }} className="font-medium text-foreground">{displayedAds[currentAdIndex]?.brand}</p>
+              <p style={{ fontSize: "clamp(0.75rem, 1vw, 0.875rem)" }} className="text-muted-foreground">{displayedAds[currentAdIndex]?.format}</p>
+              {selectedCount > 0 && (
+                <p style={{ fontSize: "clamp(0.625rem, 0.85vw, 0.75rem)" }} className="text-primary mt-1">
+                  {currentAdIndex + 1} / {displayedAds.length}
+                </p>
+              )}
             </div>
 
-            {/* Main Ad Image */}
             <AnimatePresence mode="wait">
-              <motion.img
-                key={currentAdIndex}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                src={ads[currentAdIndex].image}
-                alt={ads[currentAdIndex].title}
-                className="w-full h-full object-contain rounded-lg shadow-2xl"
-              />
+              {displayedAds[currentAdIndex] && (
+                <motion.img
+                  key={displayedAds[currentAdIndex].id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  src={displayedAds[currentAdIndex].image}
+                  alt={displayedAds[currentAdIndex].title}
+                  className="w-full h-full object-contain rounded-lg shadow-2xl"
+                  style={{
+                    filter: `brightness(${displayedAds[currentAdIndex].settings?.brightness || 100}%) contrast(${displayedAds[currentAdIndex].settings?.contrast || 100}%) saturate(${displayedAds[currentAdIndex].settings?.saturation || 100}%)`
+                  }}
+                />
+              )}
             </AnimatePresence>
 
-            {/* Right hover area for panel trigger - only right 30% of image */}
             <div 
               className="absolute right-0 top-0 w-[30%] h-full z-20"
               onMouseEnter={() => setIsRightPanelVisible(true)}
               onMouseLeave={() => setIsRightPanelVisible(false)}
             />
 
-            {/* Navigation Arrows - Adaptive Size */}
             <AnimatePresence>
               {isHoveringImage && currentAdIndex > 0 && (
                 <motion.button
@@ -483,7 +708,7 @@ const Studio = () => {
                 </motion.button>
               )}
 
-              {isHoveringImage && currentAdIndex < ads.length - 1 && (
+              {isHoveringImage && currentAdIndex < displayedAds.length - 1 && (
                 <motion.button
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -502,7 +727,162 @@ const Studio = () => {
               )}
             </AnimatePresence>
 
-            {/* Right Panel - Compact floating button 1/5 of image size */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowIndividualPrompt(!showIndividualPrompt)}
+              style={{
+                bottom: "clamp(1rem, 2vh, 1.5rem)",
+                left: "clamp(1rem, 2vw, 1.5rem)"
+              }}
+              className={`absolute bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-lg z-40 transition-all ${
+                showIndividualPrompt ? "ring-4 ring-primary/30" : ""
+              }`}
+              title="Промпт и настройки для этой фотографии"
+            >
+              <div style={{ padding: "clamp(0.75rem, 1.5vw, 1rem)" }} className="flex items-center gap-2">
+                <span style={{ fontSize: "clamp(1.25rem, 2vw, 1.5rem)" }}>🎨</span>
+              </div>
+            </motion.button>
+
+            <AnimatePresence>
+              {showIndividualPrompt && displayedAds[currentAdIndex] && (
+                <motion.div
+                  initial={{ y: 100, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 100, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  style={{
+                    bottom: "clamp(1rem, 2vh, 1.5rem)",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: "clamp(400px, 60vw, 700px)",
+                    maxHeight: "60vh"
+                  }}
+                  className="absolute bg-card/98 backdrop-blur-xl border-2 border-primary/30 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                >
+                  <div className="p-4 border-b border-border bg-primary/5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-foreground flex items-center gap-2">
+                        <span className="text-2xl">🎨</span>
+                        <span>Редактор фотографии</span>
+                      </h4>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setShowIndividualPrompt(false)}
+                        className="hover:bg-accent"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {displayedAds[currentAdIndex].brand} • {displayedAds[currentAdIndex].format}
+                    </p>
+                  </div>
+
+                  <div className="p-4 overflow-y-auto" style={{ maxHeight: "calc(60vh - 80px)" }}>
+                    <div className="mb-4">
+                      <label className="text-sm font-medium text-foreground mb-2 block flex items-center gap-2">
+                        <span>✍️</span>
+                        Промпт для этой фотографии
+                      </label>
+                      <textarea
+                        placeholder="Опишите изменения для этой фотографии..."
+                        value={displayedAds[currentAdIndex].individualPrompt || ""}
+                        onChange={(e) => updateIndividualPrompt(displayedAds[currentAdIndex].id, e.target.value)}
+                        className="w-full min-h-[100px] p-3 bg-background border-2 border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none text-sm"
+                      />
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-xs text-muted-foreground">
+                          {(displayedAds[currentAdIndex].individualPrompt || "").length} символов
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => updateIndividualPrompt(displayedAds[currentAdIndex].id, "")}
+                          className="text-xs h-7"
+                        >
+                          Очистить
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h5 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                        <span>⚙️</span>
+                        Настройки изображения
+                      </h5>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm text-muted-foreground">☀️ Яркость</label>
+                          <span className="text-sm font-medium text-foreground">
+                            {displayedAds[currentAdIndex].settings?.brightness || 100}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="50"
+                          max="150"
+                          value={displayedAds[currentAdIndex].settings?.brightness || 100}
+                          onChange={(e) => updateAdSettings(displayedAds[currentAdIndex].id, 'brightness', Number(e.target.value))}
+                          className="w-full h-2 bg-accent rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm text-muted-foreground">◐ Контраст</label>
+                          <span className="text-sm font-medium text-foreground">
+                            {displayedAds[currentAdIndex].settings?.contrast || 100}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="50"
+                          max="150"
+                          value={displayedAds[currentAdIndex].settings?.contrast || 100}
+                          onChange={(e) => updateAdSettings(displayedAds[currentAdIndex].id, 'contrast', Number(e.target.value))}
+                          className="w-full h-2 bg-accent rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm text-muted-foreground">🎨 Насыщенность</label>
+                          <span className="text-sm font-medium text-foreground">
+                            {displayedAds[currentAdIndex].settings?.saturation || 100}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="200"
+                          value={displayedAds[currentAdIndex].settings?.saturation || 100}
+                          onChange={(e) => updateAdSettings(displayedAds[currentAdIndex].id, 'saturation', Number(e.target.value))}
+                          className="w-full h-2 bg-accent rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          updateAdSettings(displayedAds[currentAdIndex].id, 'brightness', 100);
+                          updateAdSettings(displayedAds[currentAdIndex].id, 'contrast', 100);
+                          updateAdSettings(displayedAds[currentAdIndex].id, 'saturation', 100);
+                        }}
+                        className="w-full mt-4"
+                      >
+                        🔄 Сбросить настройки
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <AnimatePresence>
               {isRightPanelVisible && (
                 <motion.div
@@ -513,13 +893,13 @@ const Studio = () => {
                   onMouseEnter={() => setIsRightPanelVisible(true)}
                   onMouseLeave={() => setIsRightPanelVisible(false)}
                   style={{ 
-                    width: "clamp(6rem, 20%, 10rem)", // 1/5 of image with responsive sizing
-                    height: "clamp(6rem, 20%, 10rem)", // 1/5 of image, square aspect
-                    right: "clamp(0.75rem, 2vw, 1rem)", // Position in top-right corner of image
-                    top: "clamp(0.75rem, 2vh, 1rem)", // Top-right corner alignment
-                    padding: "clamp(0.5rem, 1vw, 0.75rem)"
+                    width: "clamp(5rem, 12vw, 9rem)",
+                    height: "clamp(5rem, 12vw, 9rem)",
+                    right: "clamp(0.5rem, 1.5vw, 1rem)",
+                    top: "clamp(0.5rem, 1.5vh, 1rem)",
+                    padding: "clamp(0.4rem, 0.8vw, 0.6rem)"
                   }}
-                  className="absolute bg-card/95 border-2 border-border flex flex-col backdrop-blur-sm shadow-2xl rounded-xl overflow-hidden z-25"
+                  className="absolute bg-card/95 border-2 border-border flex flex-col backdrop-blur-sm shadow-2xl rounded-xl overflow-hidden z-40"
                 >
                   {uploadedProducts.length === 0 ? (
                     <div
@@ -536,7 +916,7 @@ const Studio = () => {
                           width: "clamp(1.5rem, 4vw, 2rem)", 
                           height: "clamp(1.5rem, 4vw, 2rem)" 
                         }}
-                        className="text-muted-foreground opacity-60 group-hover:scale-110 group-hover:opacity-90 transition-all" 
+                        className="text-muted-foreground opacity-60 group-hover:scale-110 group-hover:opacity-90 transition-all"
                       />
                       <p style={{ fontSize: "clamp(0.625rem, 0.8vw, 0.75rem)" }} className="text-muted-foreground text-center mt-1 font-medium px-1">
                         {isDragActive ? t("dropHere") : t("addProduct")}
@@ -583,6 +963,89 @@ const Studio = () => {
             </AnimatePresence>
           </motion.div>
         </div>
+
+        <motion.div
+          initial={false}
+          animate={{ width: isRightPanelOpen ? "clamp(15rem, 20vw, 17.5rem)" : "clamp(2.5rem, 3vw, 2.75rem)" }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          onMouseEnter={() => setIsRightPanelOpen(true)}
+          onMouseLeave={() => setIsRightPanelOpen(false)}
+          className="bg-card border-l border-border overflow-hidden relative z-10"
+        >
+          {!isRightPanelOpen && (
+            <div className="h-full flex items-center justify-center">
+              <Menu style={{ width: "clamp(1.125rem, 1.5vw, 1.25rem)", height: "clamp(1.125rem, 1.5vw, 1.25rem)" }} className="text-muted-foreground" />
+            </div>
+          )}
+          
+          <AnimatePresence>
+            {isRightPanelOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{ padding: "clamp(0.75rem, 1.5vw, 1rem)" }}
+                className="h-full overflow-y-auto flex flex-col gap-4"
+              >
+                <div>
+                  <h3 style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }} className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <span className="text-xl">✨</span>
+                    {t("enterPrompt")}
+                  </h3>
+
+                  <div className="bg-accent/20 border border-border rounded-lg p-3 mb-4">
+                    <p style={{ fontSize: "clamp(0.7rem, 0.85vw, 0.8rem)" }} className="text-muted-foreground">
+                      {selectedCount > 0 
+                        ? `Промпт применится к ${selectedCount} выбранным фото` 
+                        : "Общий промпт для всех фотографий"
+                      }
+                    </p>
+                  </div>
+
+                  <div className="mb-4">
+                    <textarea
+                      placeholder="Опишите что хотите изменить во всех выбранных фотографиях..."
+                      value={promptText}
+                      onChange={(e) => setPromptText(e.target.value)}
+                      className="w-full min-h-[140px] p-3 bg-background border-2 border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                      style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }}
+                    />
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-xs text-muted-foreground">
+                        {promptText.length} символов
+                      </span>
+                      {promptText && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPromptText("")}
+                          className="text-xs h-7"
+                        >
+                          Очистить
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="default"
+                    size="lg"
+                    onClick={handleGenerate}
+                    className="w-full"
+                    disabled={!promptText && selectedCount === 0}
+                  >
+                    <span className="mr-2">✨</span>
+                    {t("generate")}
+                  </Button>
+                </div>
+
+                <div className="flex-1">
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
       </div>
     </div>
