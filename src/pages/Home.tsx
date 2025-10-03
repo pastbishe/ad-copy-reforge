@@ -53,15 +53,15 @@ const Home = () => {
           <div className="grid grid-cols-3 gap-8 mt-16 max-w-2xl mx-auto">
             <div className="text-center">
               <div className="text-4xl font-bold text-primary mb-2">10K+</div>
-              <div className="text-sm text-muted-foreground">Active Users</div>
+              <div className="text-sm text-muted-foreground">{t("activeUsers")}</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-primary mb-2">50K+</div>
-              <div className="text-sm text-muted-foreground">Ads Created</div>
+              <div className="text-sm text-muted-foreground">{t("adsCreated")}</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-primary mb-2">95%</div>
-              <div className="text-sm text-muted-foreground">Success Rate</div>
+              <div className="text-sm text-muted-foreground">{t("successRate")}</div>
             </div>
           </div>
         </div>

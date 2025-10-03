@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:tunnel": "vite & npx localtunnel --port 8080",
+    "dev:auto-deploy": "bash auto-deploy.sh",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

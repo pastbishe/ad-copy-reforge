@@ -84,7 +84,6 @@ const translations: Translations = {
     
     // Studio
     importAds: "Import Competitor Ads",
-    importCompetitorAds: "Import Competitor Ads",
     importAdsDesc: "Paste Facebook Ad Library URLs or profile links",
     pasteAdUrls: "Paste Facebook Ad Library URLs or profile links",
     chooseFromHistory: "Choose from history",
@@ -129,6 +128,27 @@ const translations: Translations = {
     lightTheme: "Light",
     darkTheme: "Dark",
     systemTheme: "System",
+    
+    // Studio specific
+    competitorAds: "Competitor Ads",
+    scrapingCompetitorAds: "Scraping competitor ads...",
+    adsImported: "Ads imported",
+    successfullyScraped: "Successfully scraped",
+    competitorAdsCount: "competitor ads",
+    uploadComplete: "Upload complete",
+    productsAdded: "product(s) added",
+    generatingVariants: "Generating variants",
+    aiCreatingVariations: "AI is creating your ad variations...",
+    addProduct: "Add Product",
+    dragDropOrClick: "Drag & drop or click",
+    dropHere: "Drop here",
+    generate: "Generate",
+    import: "Import",
+    
+    // Home page stats
+    activeUsers: "Active Users",
+    adsCreated: "Ads Created",
+    successRate: "Success Rate",
   },
   ru: {
     // Navigation
@@ -205,7 +225,6 @@ const translations: Translations = {
     
     // Studio
     importAds: "Импорт рекламы конкурентов",
-    importCompetitorAds: "Импорт рекламы конкурентов",
     importAdsDesc: "Вставьте URL библиотеки рекламы Facebook или ссылки на профили",
     pasteAdUrls: "Вставьте URL библиотеки рекламы Facebook или ссылки на профили",
     chooseFromHistory: "Выбрать из истории",
@@ -250,6 +269,27 @@ const translations: Translations = {
     lightTheme: "Светлая",
     darkTheme: "Темная",
     systemTheme: "Системная",
+    
+    // Studio specific
+    competitorAds: "Реклама конкурентов",
+    scrapingCompetitorAds: "Сбор рекламы конкурентов...",
+    adsImported: "Реклама импортирована",
+    successfullyScraped: "Успешно собрано",
+    competitorAdsCount: "рекламных объявлений конкурентов",
+    uploadComplete: "Загрузка завершена",
+    productsAdded: "товар(ов) добавлено",
+    generatingVariants: "Создание вариантов",
+    aiCreatingVariations: "ИИ создает варианты вашей рекламы...",
+    addProduct: "Добавить товар",
+    dragDropOrClick: "Перетащите или нажмите",
+    dropHere: "Отпустите здесь",
+    generate: "Создать",
+    import: "Импорт",
+    
+    // Home page stats
+    activeUsers: "Активных пользователей",
+    adsCreated: "Создано рекламы",
+    successRate: "Успешность",
   },
   de: {
     // Navigation
@@ -326,7 +366,6 @@ const translations: Translations = {
     
     // Studio
     importAds: "Konkurrenzanzeigen importieren",
-    importCompetitorAds: "Konkurrenzanzeigen importieren",
     importAdsDesc: "Facebook Ad Library URLs oder Profillinks einfügen",
     pasteAdUrls: "Facebook Ad Library URLs oder Profillinks einfügen",
     chooseFromHistory: "Aus Historie wählen",
@@ -371,6 +410,27 @@ const translations: Translations = {
     lightTheme: "Hell",
     darkTheme: "Dunkel",
     systemTheme: "System",
+    
+    // Studio specific
+    competitorAds: "Konkurrenzanzeigen",
+    scrapingCompetitorAds: "Konkurrenzanzeigen werden gesammelt...",
+    adsImported: "Anzeigen importiert",
+    successfullyScraped: "Erfolgreich gesammelt",
+    competitorAdsCount: "Konkurrenzanzeigen",
+    uploadComplete: "Upload abgeschlossen",
+    productsAdded: "Produkt(e) hinzugefügt",
+    generatingVariants: "Varianten werden erstellt",
+    aiCreatingVariations: "KI erstellt Ihre Anzeigenvarianten...",
+    addProduct: "Produkt hinzufügen",
+    dragDropOrClick: "Ziehen & ablegen oder klicken",
+    dropHere: "Hier ablegen",
+    generate: "Erstellen",
+    import: "Importieren",
+    
+    // Home page stats
+    activeUsers: "Aktive Benutzer",
+    adsCreated: "Erstellte Anzeigen",
+    successRate: "Erfolgsrate",
   },
   pl: {
     // Navigation
@@ -447,7 +507,6 @@ const translations: Translations = {
     
     // Studio
     importAds: "Importuj reklamy konkurencji",
-    importCompetitorAds: "Importuj reklamy konkurencji",
     importAdsDesc: "Wklej URL-e biblioteki reklam Facebook lub linki do profili",
     pasteAdUrls: "Wklej URL-e biblioteki reklam Facebook lub linki do profili",
     chooseFromHistory: "Wybierz z historii",
@@ -492,6 +551,27 @@ const translations: Translations = {
     lightTheme: "Jasny",
     darkTheme: "Ciemny",
     systemTheme: "Systemowy",
+    
+    // Studio specific
+    competitorAds: "Reklamy konkurencji",
+    scrapingCompetitorAds: "Zbieranie reklam konkurencji...",
+    adsImported: "Reklamy zaimportowane",
+    successfullyScraped: "Pomyślnie zebrano",
+    competitorAdsCount: "reklam konkurencji",
+    uploadComplete: "Przesyłanie zakończone",
+    productsAdded: "produkt(ów) dodano",
+    generatingVariants: "Tworzenie wariantów",
+    aiCreatingVariations: "AI tworzy warianty Twojej reklamy...",
+    addProduct: "Dodaj produkt",
+    dragDropOrClick: "Przeciągnij i upuść lub kliknij",
+    dropHere: "Upuść tutaj",
+    generate: "Generuj",
+    import: "Importuj",
+    
+    // Home page stats
+    activeUsers: "Aktywni użytkownicy",
+    adsCreated: "Utworzone reklamy",
+    successRate: "Wskaźnik sukcesu",
   },
 };
 
