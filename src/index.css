@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Light theme - COPY ADD */
+    --background: 0 0% 100%; /* White */
+    --foreground: 0 0% 10%; /* Near black */
+
+    --card: 0 0% 98%; /* Very light gray */
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 262 83% 58%; /* Purple accent */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 96%; /* Light gray */
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 240 5% 96%;
+    --accent-foreground: 0 0% 10%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 262 83% 58%;
+
+    --radius: 0.5rem;
+
+    /* Smooth transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Subtle glow effects */
+    --glow-subtle: 0 0 20px rgba(139, 92, 246, 0.15);
+  }
+
+  .dark {
+    /* Dark tech-forward design system - COPY ADD */
+    --background: 0 0% 5%; /* Near black */
+    --foreground: 0 0% 100%; /* Pure white */
+
+    --card: 0 0% 10%; /* Dark gray */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 262 83% 58%; /* Purple accent */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 15%; /* Medium gray */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 262 83% 58%;
+
+    /* Subtle glow effects */
+    --glow-subtle: 0 0 20px rgba(139, 92, 246, 0.2);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+}
+
+@layer components {
+  /* Hero button variant */
+  .btn-hero {
+    @apply bg-secondary text-foreground px-8 py-4 rounded-lg font-medium;
+    @apply hover:bg-accent transition-all duration-300;
+    @apply border border-border;
+  }
+
+  /* Hover scale animation */
+  .hover-scale {
+    @apply transition-transform duration-300 hover:scale-105;
+  }
+
+  /* Subtle pulse animation for loaders */
+  .pulse-subtle {
+    animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-subtle {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  /* Smooth fade-in */
+  .fade-in {
+    animation: fade-in 0.5s ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* AnimatedSlider keyframes */
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  
+  @keyframes wave {
+    0% { background-position: 0% 0%, 0% 0%; }
+    100% { background-position: 0% 0%, 100% 0%; }
+  }
+  
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 0%, 0% 0%; }
+    50% { background-position: 0% 0%, 100% 0%; }
+  }
+
+  /* Wave animation for toast notification */
+  .toast-wave-animation {
+    animation: toastWaveIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+
+  .toast-wave-animation[data-state="open"] {
+    animation: toastWaveIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+
+  @keyframes toastWaveIn {
+    0% {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.9);
+    }
+    50% {
+      transform: translateY(5px) scale(1.02);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Import button icon rotation animation */
+  @keyframes rotateIcon {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .import-icon-rotate {
+    animation: rotateIcon 3s linear infinite !important;
+    display: inline-block !important;
+    transform-origin: center center !important;
+  }
+  
+  button .import-icon-rotate,
+  [role="button"] .import-icon-rotate {
+    animation: rotateIcon 3s linear infinite !important;
+    display: inline-block !important;
+    transform-origin: center center !important;
+  }
+}

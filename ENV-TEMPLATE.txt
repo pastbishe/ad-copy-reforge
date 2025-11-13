@@ -1,0 +1,13 @@
+# Шаблон файла .env.local
+# 
+# ИНСТРУКЦИЯ:
+# 1. Скопируйте этот файл и переименуйте в .env.local
+# 2. Замените значения на ваши реальные
+# 3. Файл .env.local уже в .gitignore, поэтому не попадет в git
+#
+# ============================================
+
+# URL webhook для N8N скрапинга конкурентов
+# Замените на ваш реальный URL webhook
+VITE_N8N_SCRAPING_WEBHOOK_URL=https://n8n.praitech.io/webhook/scrape-competitor-simple
+
