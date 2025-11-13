@@ -6,10 +6,14 @@
   "scripts": {
     "dev": "vite",
     "dev:tunnel": "vite & npx localtunnel --port 8080",
+    "dev:watch": "vite & node scripts/watch-stability.js",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:stability": "node scripts/check-stability.js",
+    "watch:stability": "node scripts/watch-stability.js",
+    "prebuild": "npm run check:stability"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -62,6 +66,7 @@
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "three": "^0.181.0",
     "vaul": "^0.9.9",
     "zod": "^3.25.76"
   },

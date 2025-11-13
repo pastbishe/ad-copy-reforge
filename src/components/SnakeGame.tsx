@@ -23,19 +23,30 @@ export const SnakeGame = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const gridSize = 4;
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const gridSize = 20;
     const cols = Math.floor(canvas.width / gridSize);
     const rows = Math.floor(canvas.height / gridSize);
     
     let snake: Position[] = [
-      { x: 5, y: 2 },
-      { x: 4, y: 2 },
-      { x: 3, y: 2 }
+      { x: Math.floor(cols / 4), y: Math.floor(rows / 2) },
+      { x: Math.floor(cols / 4) - 1, y: Math.floor(rows / 2) },
+      { x: Math.floor(cols / 4) - 2, y: Math.floor(rows / 2) }
     ];
     let direction: Position = { x: 1, y: 0 };
     let fruits: Position[] = [
-      { x: 15, y: 2 },
-      { x: 25, y: 3 }
+      { x: Math.floor(cols * 0.3), y: Math.floor(rows * 0.2) },
+      { x: Math.floor(cols * 0.6), y: Math.floor(rows * 0.3) },
+      { x: Math.floor(cols * 0.8), y: Math.floor(rows * 0.6) },
+      { x: Math.floor(cols * 0.2), y: Math.floor(rows * 0.8) },
+      { x: Math.floor(cols * 0.7), y: Math.floor(rows * 0.9) }
     ];
     
     const getSnakeColor = () => {
@@ -81,9 +92,9 @@ export const SnakeGame = () => {
 
       if (possibleDirections.length === 0) {
         snake = [
-          { x: 5, y: 2 },
-          { x: 4, y: 2 },
-          { x: 3, y: 2 }
+          { x: Math.floor(cols / 4), y: Math.floor(rows / 2) },
+          { x: Math.floor(cols / 4) - 1, y: Math.floor(rows / 2) },
+          { x: Math.floor(cols / 4) - 2, y: Math.floor(rows / 2) }
         ];
         direction = { x: 1, y: 0 };
         return;
@@ -168,20 +179,25 @@ export const SnakeGame = () => {
       ctx.globalAlpha = 1;
     };
 
-    const interval = setInterval(gameLoop, 250);
+    const interval = setInterval(gameLoop, 150);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('resize', resizeCanvas);
+    };
   }, [theme, isEnabled]);
 
   if (!isEnabled) return null;
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={200}
-      height={28}
-      className="rounded opacity-30 hover:opacity-50 transition-opacity duration-300 hidden md:block"
-      style={{ imageRendering: "pixelated" }}
-    />
+    <div className="absolute inset-0 w-full h-full pointer-events-none">
+      <canvas
+        ref={canvasRef}
+        width={window.innerWidth}
+        height={window.innerHeight}
+        className="w-full h-full opacity-40"
+        style={{ imageRendering: "pixelated" }}
+      />
+    </div>
   );
 };

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Получить User ID</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .instructions {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+        .instructions h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+        .instructions li {
+            margin-bottom: 10px;
+        }
+        .step {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: transform 0.2s;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+            display: block;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+            display: block;
+        }
+        .result h3 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .user-id {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            word-break: break-all;
+            margin: 15px 0;
+            border: 2px dashed #667eea;
+            text-align: center;
+        }
+        .copy-btn {
+            background: #28a745;
+            margin-top: 10px;
+        }
+        .info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Получить User ID</h1>
+        
+        <div class="instructions">
+            <h2>📋 Инструкция:</h2>
+            <ol>
+                <li>Откройте ваш сайт в <strong>другой вкладке</strong> браузера (где вы залогинены)</li>
+                <li>Нажмите <code>F12</code> чтобы открыть консоль разработчика</li>
+                <li>Перейдите на вкладку <strong>Application</strong> (или <strong>Хранилище</strong>)</li>
+                <li>В левом меню найдите <strong>Local Storage</strong> → ваш домен сайта</li>
+                <li>Найдите ключ, который содержит <code>supabase.auth</code> или <code>sb-</code></li>
+                <li>Скопируйте значение ключа <code>access_token</code> из JSON объекта</li>
+                <li>Вставьте токен в поле ниже и нажмите кнопку</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <label for="token" style="display: block; margin-bottom: 10px; font-weight: bold;">
+                Access Token:
+            </label>
+            <textarea 
+                id="token" 
+                placeholder="Вставьте access_token из Local Storage..."
+                style="width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; min-height: 100px; resize: vertical;"
+            ></textarea>
+        </div>
+
+        <button onclick="getUserId()">🔍 Получить User ID</button>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://ticugdxpzglbpymvfnyj.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpY3VnZHhwemdsYnB5bXZmbnlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MjEyMDksImV4cCI6MjA3MjI5NzIwOX0.pGdJS4Ql5ieOahI0InSMGv1p6sFGGcooUIAvPW_D6K8";
+
+        async function getUserId() {
+            const tokenInput = document.getElementById('token');
+            const resultDiv = document.getElementById('result');
+            const token = tokenInput.value.trim();
+
+            if (!token) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '<h3>❌ Ошибка</h3><p>Пожалуйста, вставьте access_token</p>';
+                return;
+            }
+
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '<h3>⏳ Загрузка...</h3>';
+
+            try {
+                const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'apikey': SUPABASE_ANON_KEY
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const userData = await response.json();
+
+                if (!userData || !userData.id) {
+                    throw new Error('Не удалось получить данные пользователя');
+                }
+
+                const userId = userData.id;
+
+                // Получаем username из профиля
+                let username = 'не установлен';
+                try {
+                    const profileResponse = await fetch(
+                        `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=username`,
+                        {
+                            headers: {
+                                'apikey': SUPABASE_ANON_KEY,
+                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                            }
+                        }
+                    );
+
+                    if (profileResponse.ok) {
+                        const profileData = await profileResponse.json();
+                        if (profileData && profileData.length > 0 && profileData[0].username) {
+                            username = profileData[0].username;
+                        }
+                    }
+                } catch (e) {
+                    console.log('Не удалось получить username:', e);
+                }
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h3>✅ User ID найден!</h3>
+                    <div class="info">👤 Username: <strong>${username}</strong></div>
+                    <div class="info">📧 Email: <strong>${userData.email || 'не указан'}</strong></div>
+                    <div class="user-id" id="userIdText">${userId}</div>
+                    <button class="copy-btn" onclick="copyUserId()">📋 Копировать User ID</button>
+                `;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Ошибка</h3>
+                    <p>${error.message}</p>
+                    <div class="info" style="margin-top: 15px;">
+                        <strong>Возможные причины:</strong><br>
+                        • Токен недействителен или истек<br>
+                        • Вы не залогинены на сайте<br>
+                        • Токен был скопирован неправильно
+                    </div>
+                `;
+            }
+        }
+
+        function copyUserId() {
+            const userIdText = document.getElementById('userIdText');
+            const text = userIdText.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Скопировано!';
+                btn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#28a745';
+                }, 2000);
+            }).catch(err => {
+                alert('Не удалось скопировать. Скопируйте вручную: ' + text);
+            });
+        }
+
+        // Поддержка Enter для отправки
+        document.getElementById('token').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                getUserId();
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+

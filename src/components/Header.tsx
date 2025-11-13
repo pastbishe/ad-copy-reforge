@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { User, FileText, Moon, Sun, Monitor } from "lucide-react";
+import { User, FileText, Moon, Sun, Monitor, LogOut, Link as LinkIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LanguageFlag = ({ code }: { code: string }) => {
   const flags: Record<string, string> = {
@@ -18,6 +19,8 @@ const LanguageFlag = ({ code }: { code: string }) => {
 export const Header = () => {
   const { t, language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
+  const { user, isDemoUser, signOut } = useAuth();
+  const isAuthenticated = user || isDemoUser;
 
   return (
     <header className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b border-border shadow-sm">
@@ -26,6 +29,31 @@ export const Header = () => {
           COPY ADD
         </Link>
         <nav className="flex items-center gap-3">
+          {isAuthenticated && (
+            <Link to="/studio/empty">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="hover:bg-accent relative overflow-visible" 
+                title={t("importLink") || "Import Link"}
+              >
+                <div 
+                  style={{
+                    animation: 'rotateIcon 5s linear infinite',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '20px',
+                    height: '20px',
+                    transformOrigin: 'center center',
+                    willChange: 'transform'
+                  }}
+                >
+                  <LinkIcon className="w-5 h-5" />
+                </div>
+              </Button>
+            </Link>
+          )}
           <Link to="/docs">
             <Button variant="ghost" size="icon" className="hover:bg-accent">
               <FileText className="w-5 h-5" />
@@ -87,11 +115,31 @@ export const Header = () => {
               </SelectItem>
             </SelectContent>
           </Select>
-          <Link to="/profile">
-            <Button variant="ghost" size="icon" className="hover:bg-accent">
-              <User className="w-4 h-4" />
-            </Button>
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <Link to="/profile">
+                <Button variant="ghost" size="icon" className="hover:bg-accent">
+                  <User className="w-4 h-4" />
+                </Button>
+              </Link>
+              <Button variant="ghost" size="icon" className="hover:bg-accent" onClick={signOut}>
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="ghost" size="sm">
+                  {t("login")}
+                </Button>
+              </Link>
+              <Link to="/signup">
+                <Button size="sm">
+                  {t("signup")}
+                </Button>
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>

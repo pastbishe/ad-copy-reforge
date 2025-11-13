@@ -88,11 +88,13 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    overflow-x: hidden;
   }
 
   /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
   }
 }
 
@@ -137,5 +139,67 @@ All colors MUST be HSL.
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /* AnimatedSlider keyframes */
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  
+  @keyframes wave {
+    0% { background-position: 0% 0%, 0% 0%; }
+    100% { background-position: 0% 0%, 100% 0%; }
+  }
+  
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 0%, 0% 0%; }
+    50% { background-position: 0% 0%, 100% 0%; }
+  }
+
+  /* Wave animation for toast notification */
+  .toast-wave-animation {
+    animation: toastWaveIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+
+  .toast-wave-animation[data-state="open"] {
+    animation: toastWaveIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+
+  @keyframes toastWaveIn {
+    0% {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.9);
+    }
+    50% {
+      transform: translateY(5px) scale(1.02);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Import button icon rotation animation */
+  @keyframes rotateIcon {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .import-icon-rotate {
+    animation: rotateIcon 3s linear infinite !important;
+    display: inline-block !important;
+    transform-origin: center center !important;
+  }
+  
+  button .import-icon-rotate,
+  [role="button"] .import-icon-rotate {
+    animation: rotateIcon 3s linear infinite !important;
+    display: inline-block !important;
+    transform-origin: center center !important;
   }
 }

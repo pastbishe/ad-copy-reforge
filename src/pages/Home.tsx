@@ -1,12 +1,50 @@
 import { Button } from "@/components/ui/button";
 import { Upload, Wand2, Download, Sparkles, Zap, TrendingUp } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Header } from "@/components/Header";
-import heroBg from "@/assets/hero-bg.jpg";
+import Ballpit from "@/components/Ballpit";
+import { getUserCompetitorPhotos } from "@/lib/scrapingUtils";
 
 const Home = () => {
   const { t } = useLanguage();
+  const { user, isDemoUser } = useAuth();
+  const navigate = useNavigate();
+  const isAuthenticated = user || isDemoUser;
+
+  const handleGetStarted = async () => {
+    if (isAuthenticated) {
+      // Если залогинен - проверяем наличие фотографий конкурентов
+      const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
+      
+      if (isDemoUserLocal || !user) {
+        // Для демо-пользователей или если нет пользователя, перекидываем на студию
+        navigate("/studio");
+        return;
+      }
+      
+      try {
+        // Проверяем наличие фотографий конкурентов
+        const competitorPhotos = await getUserCompetitorPhotos(user.id, 1);
+        
+        if (competitorPhotos.length > 0) {
+          // Если есть фотографии - перекидываем на студию
+          navigate("/studio");
+        } else {
+          // Если нет фотографий - перекидываем на страницу empty
+          navigate("/studio/empty");
+        }
+      } catch (error) {
+        console.error('Ошибка проверки фотографий конкурентов:', error);
+        // При ошибке перекидываем на страницу empty
+        navigate("/studio/empty");
+      }
+    } else {
+      // Если не залогинен - перекидываем на страницу регистрации
+      navigate("/signup");
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
@@ -15,12 +53,8 @@ const Home = () => {
       {/* Hero Section - Modern Gradient Design */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
         <div className="absolute inset-0 z-0">
-          <img 
-            src={heroBg} 
-            alt="Hero background" 
-            className="w-full h-full object-cover opacity-10"
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent" />
+          <Ballpit className="absolute inset-0 w-full h-full" />
+          <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/60 to-background/80" />
         </div>
         
         <div className="relative z-10 text-center px-6 max-w-5xl mx-auto fade-in" style={{ animation: 'fade-in 0.6s ease-out' }}>
@@ -36,17 +70,21 @@ const Home = () => {
             {t("heroSubtitle")}
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link to="/signup">
-              <Button size="lg" className="text-lg px-10 py-7 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all">
-                {t("signup")}
-                <Zap className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
-            <Link to="/login">
-              <Button variant="outline" size="lg" className="text-lg px-10 py-7 border-2 hover:bg-accent/50">
-                {t("login")}
-              </Button>
-            </Link>
+            <Button 
+              onClick={handleGetStarted}
+              size="lg" 
+              className="text-lg px-10 py-7 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
+            >
+              Get Started
+              <Zap className="w-5 h-5 ml-2" />
+            </Button>
+            {!isAuthenticated && (
+              <Link to="/signup">
+                <Button variant="outline" size="lg" className="text-lg px-10 py-7 border-2 hover:bg-accent/50">
+                  {t("signup")}
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Stats */}

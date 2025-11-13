@@ -42,12 +42,17 @@ const Login = () => {
         title: t("loginSuccess"),
       });
 
-      navigate("/studio");
+      navigate("/");
     } catch (error: any) {
       console.error("Login error:", error);
+      
+      // Получаем понятное сообщение об ошибке
+      const { handleNetworkError } = await import("@/lib/networkUtils");
+      const { message: userMessage } = handleNetworkError(error);
+      
       toast({
         title: "Ошибка входа",
-        description: error.message || "Неверный email или пароль",
+        description: userMessage || error.message || "Неверный email или пароль",
         variant: "destructive",
       });
     } finally {
@@ -62,7 +67,7 @@ const Login = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/studio`,
+          redirectTo: `${window.location.origin}/`,
         },
       });
 
@@ -81,16 +86,52 @@ const Login = () => {
   const handleDemoLogin = async () => {
     setIsLoading(true);
     
-    localStorage.setItem("demo_user", "true");
-    
-    toast({
-      title: t("demoLogin"),
-    });
-    
-    setTimeout(() => {
-      navigate("/studio");
+    try {
+      // Создаем демо-пользователя в Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: "demo@copyadd.com",
+        password: "demo123456"
+      });
+
+      if (error) {
+        // Если демо-пользователь не существует, создаем его
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: "demo@copyadd.com",
+          password: "demo123456",
+          options: {
+            data: {
+              is_demo: true
+            }
+          }
+        });
+
+        if (signUpError) {
+          console.error("Demo user creation failed:", signUpError);
+          // Fallback к старому способу
+          localStorage.setItem("demo_user", "true");
+        } else {
+          localStorage.setItem("demo_user", "true");
+        }
+      } else {
+        localStorage.setItem("demo_user", "true");
+      }
+      
+      toast({
+        title: t("demoLogin"),
+      });
+      
+      navigate("/");
+    } catch (error) {
+      console.error("Demo login error:", error);
+      // Fallback к старому способу
+      localStorage.setItem("demo_user", "true");
+      toast({
+        title: t("demoLogin"),
+      });
+      navigate("/");
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (

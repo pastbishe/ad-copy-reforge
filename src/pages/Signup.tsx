@@ -25,16 +25,21 @@ const Signup = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/studio`,
+          redirectTo: `${window.location.origin}/`,
         },
       });
 
       if (error) throw error;
     } catch (error: any) {
       console.error("Google signup error:", error);
+      
+      // Получаем понятное сообщение об ошибке
+      const { handleNetworkError } = await import("@/lib/networkUtils");
+      const { message: userMessage } = handleNetworkError(error);
+      
       toast({
         title: t("error"),
-        description: t("googleLoginError"),
+        description: userMessage || t("googleLoginError"),
         variant: "destructive",
       });
       setIsLoading(false);
@@ -78,7 +83,7 @@ const Signup = () => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/studio`,
+          emailRedirectTo: `${window.location.origin}/`,
         },
       });
 
@@ -92,9 +97,14 @@ const Signup = () => {
       navigate(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (error: any) {
       console.error("Signup error:", error);
+      
+      // Получаем понятное сообщение об ошибке
+      const { handleNetworkError } = await import("@/lib/networkUtils");
+      const { message: userMessage } = handleNetworkError(error);
+      
       toast({
         title: t("signupError"),
-        description: error.message || t("signupFailed"),
+        description: userMessage || error.message || t("signupFailed"),
         variant: "destructive",
       });
     } finally {

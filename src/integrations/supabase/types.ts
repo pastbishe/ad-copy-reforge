@@ -176,6 +176,87 @@ export type Database = {
         }
         Relationships: []
       }
+      photos: {
+        Row: {
+          id: string
+          user_id: string
+          url: string
+          photo_url: string | null
+          status: 'pending' | 'processing' | 'completed' | 'failed'
+          operation_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          url: string
+          photo_url?: string | null
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          operation_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          url?: string
+          photo_url?: string | null
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          operation_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_photos: {
+        Row: {
+          compressed_url: string | null
+          created_at: string | null
+          file_name: string
+          file_size: number
+          height: number | null
+          id: string
+          is_valid: boolean | null
+          mime_type: string
+          original_url: string
+          quality_score: number | null
+          updated_at: string | null
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          compressed_url?: string | null
+          created_at?: string | null
+          file_name: string
+          file_size: number
+          height?: number | null
+          id?: string
+          is_valid?: boolean | null
+          mime_type: string
+          original_url: string
+          quality_score?: number | null
+          updated_at?: string | null
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          compressed_url?: string | null
+          created_at?: string | null
+          file_name?: string
+          file_size?: number
+          height?: number | null
+          id?: string
+          is_valid?: boolean | null
+          mime_type?: string
+          original_url?: string
+          quality_score?: number | null
+          updated_at?: string | null
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
