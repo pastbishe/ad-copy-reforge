@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { X, Trash2, Upload, AlertCircle, CheckCircle, Image as ImageIcon, RefreshCw, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { getUserPhotos, deleteUserPhoto } from '@/lib/imageUtils';
+import { getUserPhotos, deleteUserPhoto, deleteAllUserPhotos } from '@/lib/imageUtils';
 import { getCombinedPhotoHistory, deleteCompetitorPhoto, deletePhotoImport } from '@/lib/scrapingUtils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -48,6 +48,7 @@ export const PhotoHistoryModal: React.FC<PhotoHistoryModalProps> = ({
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'all' | 'user' | 'competitor'>('all');
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const { toast } = useToast();
   const { t } = useLanguage();
 
@@ -127,29 +128,25 @@ export const PhotoHistoryModal: React.FC<PhotoHistoryModalProps> = ({
       } else if (photo.source === 'competitor' || photo.type === 'competitor') {
         // Проверяем, является ли это импортированной фотографией из таблицы photos
         // Импортированные фотографии имеют ID в формате `${importItem.id}-${photoUrl}`
-        if (photoId.includes('-') && photoId.split('-').length > 1) {
-          // Это импортированная фотография из таблицы photos
-          // Извлекаем UUID из составного ID (часть до первого дефиса после UUID)
-          const uuidMatch = photoId.match(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
-          if (uuidMatch) {
-            const actualId = uuidMatch[1];
-            await deletePhotoImport(actualId);
-          } else {
-            // Если не удалось извлечь UUID, пытаемся удалить как competitor_photo
-            // Проверяем, является ли ID числом (competitor_photos использует bigserial)
-            const numericId = parseInt(photoId, 10);
-            if (!isNaN(numericId)) {
-              await deleteCompetitorPhoto(numericId);
-            } else {
-              throw new Error('Неверный формат ID фотографии');
-            }
-          }
+        // UUID формат: 8-4-4-4-12 символов
+        const uuidPattern = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+        const uuidMatch = photoId.match(uuidPattern);
+        
+        if (uuidMatch && photoId.includes('-') && photoId.length > 36) {
+          // Это импортированная фотография из таблицы photos (ID содержит UUID и URL)
+          const actualId = uuidMatch[1];
+          console.log('Удаляем импортированную фотографию, ID записи:', actualId);
+          await deletePhotoImport(actualId);
         } else {
           // Это фотография из competitor_photos (ID - число)
           const numericId = parseInt(photoId, 10);
           if (isNaN(numericId)) {
-            throw new Error('Неверный формат ID фотографии конкурента');
+            // Если ID не число и не UUID, пытаемся извлечь UUID другим способом
+            // Может быть формат без дефисов или другой формат
+            console.warn('Не удалось определить тип ID фотографии:', photoId);
+            throw new Error('Неверный формат ID фотографии. Попробуйте обновить страницу.');
           }
+          console.log('Удаляем фотографию конкурента, ID:', numericId);
           await deleteCompetitorPhoto(numericId);
         }
       } else {
@@ -157,7 +154,13 @@ export const PhotoHistoryModal: React.FC<PhotoHistoryModalProps> = ({
         await deleteUserPhoto(photoId);
       }
       
+      // Удаляем из локального состояния
       setPhotos(prev => prev.filter(photo => photo.id !== photoId));
+      
+      // Перезагружаем фотографии из базы данных для синхронизации
+      if (userPhotos.length === 0) {
+        await loadPhotos();
+      }
       
       // Обновляем список в родительском компоненте
       if (onRefresh) {
@@ -168,11 +171,12 @@ export const PhotoHistoryModal: React.FC<PhotoHistoryModalProps> = ({
         title: t("success"),
         description: t("photoDeleted"),
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Ошибка удаления фотографии:', error);
+      const errorMessage = error?.message || error?.userMessage || t("failedToDeletePhoto") || "Не удалось удалить фотографию";
       toast({
         title: t("error"),
-        description: t("failedToDeletePhoto") || "Не удалось удалить фотографию",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -274,50 +278,127 @@ export const PhotoHistoryModal: React.FC<PhotoHistoryModalProps> = ({
 
     try {
       // Удаляем фотографии по одной, определяя тип каждой
-      const deletePromises = selectedArray.map(async (photoId) => {
-        const photo = photos.find(p => p.id === photoId);
-        if (!photo) {
-          throw new Error(`Фотография с ID ${photoId} не найдена`);
-        }
+      // Используем Promise.allSettled чтобы продолжить удаление даже если некоторые не удались
+      const deleteResults = await Promise.allSettled(
+        selectedArray.map(async (photoId) => {
+          const photo = photos.find(p => p.id === photoId);
+          if (!photo) {
+            throw new Error(`Фотография с ID ${photoId} не найдена`);
+          }
 
-        if (photo.source === 'user' || photo.type === 'user') {
-          // Фотография из user_photos
-          await deleteUserPhoto(photoId);
-        } else if (photo.source === 'competitor' || photo.type === 'competitor') {
-          // Проверяем, является ли это импортированной фотографией из таблицы photos
-          if (photoId.includes('-') && photoId.split('-').length > 1) {
-            // Это импортированная фотография из таблицы photos
-            const uuidMatch = photoId.match(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
-            if (uuidMatch) {
+          if (photo.source === 'user' || photo.type === 'user') {
+            // Фотография из user_photos
+            await deleteUserPhoto(photoId);
+          } else if (photo.source === 'competitor' || photo.type === 'competitor') {
+            // Проверяем, является ли это импортированной фотографией из таблицы photos
+            // UUID формат: 8-4-4-4-12 символов
+            const uuidPattern = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+            const uuidMatch = photoId.match(uuidPattern);
+            
+            if (uuidMatch && photoId.includes('-') && photoId.length > 36) {
+              // Это импортированная фотография из таблицы photos
               const actualId = uuidMatch[1];
               await deletePhotoImport(actualId);
             } else {
-              // Если не удалось извлечь UUID, пытаемся удалить как competitor_photo
+              // Это фотография из competitor_photos (ID - число)
               const numericId = parseInt(photoId, 10);
-              if (!isNaN(numericId)) {
-                await deleteCompetitorPhoto(numericId);
-              } else {
+              if (isNaN(numericId)) {
                 throw new Error(`Неверный формат ID фотографии: ${photoId}`);
               }
+              await deleteCompetitorPhoto(numericId);
             }
           } else {
-            // Это фотография из competitor_photos (ID - число)
-            const numericId = parseInt(photoId, 10);
-            if (isNaN(numericId)) {
-              throw new Error(`Неверный формат ID фотографии конкурента: ${photoId}`);
-            }
-            await deleteCompetitorPhoto(numericId);
+            // По умолчанию пытаемся удалить как user_photo
+            await deleteUserPhoto(photoId);
           }
-        } else {
-          // По умолчанию пытаемся удалить как user_photo
-          await deleteUserPhoto(photoId);
-        }
+        })
+      );
+
+      // Подсчитываем успешные и неудачные удаления
+      const successful = deleteResults.filter(r => r.status === 'fulfilled').length;
+      const failed = deleteResults.filter(r => r.status === 'rejected').length;
+
+      // Удаляем из списка только успешно удаленные
+      const successfullyDeletedIds = selectedArray.filter((_, index) => 
+        deleteResults[index].status === 'fulfilled'
+      );
+      
+      // Удаляем из локального состояния
+      setPhotos(prev => prev.filter(photo => !successfullyDeletedIds.includes(photo.id)));
+      
+      // Перезагружаем фотографии из базы данных для синхронизации
+      if (userPhotos.length === 0) {
+        await loadPhotos();
+      }
+      
+      // Очищаем выбор
+      setSelectedPhotos(new Set());
+
+      // Обновляем список в родительском компоненте
+      if (onRefresh) {
+        onRefresh();
+      }
+
+      // Показываем результат
+      if (failed > 0) {
+        toast({
+          title: t("warning") || "Предупреждение",
+          description: `Удалено ${successful} из ${selectedArray.length} фотографий. ${failed} не удалось удалить.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: t("success"),
+          description: `${successful} ${t("photoDeleted")}`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Ошибка удаления фотографий:', error);
+      const errorMessage = error?.message || error?.userMessage || t("failedToDeletePhotos") || "Не удалось удалить фотографии";
+      toast({
+        title: t("error"),
+        description: errorMessage,
+        variant: "destructive",
       });
+    } finally {
+      setDeletingIds(new Set());
+    }
+  };
 
-      await Promise.all(deletePromises);
+  // Удалить все загруженные фотографии
+  const handleDeleteAllUploaded = async () => {
+    if (userPhotosList.length === 0) return;
 
-      // Удаляем из списка
-      setPhotos(prev => prev.filter(photo => !selectedPhotos.has(photo.id)));
+    // Подтверждение удаления
+    const confirmed = window.confirm(
+      t("clearAllConfirm") || `Вы уверены, что хотите удалить все ${userPhotosList.length} загруженных фотографий? Это действие нельзя отменить.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsDeletingAll(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        toast({
+          title: t("error"),
+          description: t("authRequired"),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const deletedCount = await deleteAllUserPhotos(session.user.id);
+
+      // Удаляем из локального состояния
+      setPhotos(prev => prev.filter(photo => !(photo.source === 'user' || photo.type === 'user')));
+      
+      // Перезагружаем фотографии из базы данных для синхронизации
+      if (userPhotos.length === 0) {
+        await loadPhotos();
+      }
       
       // Очищаем выбор
       setSelectedPhotos(new Set());
@@ -329,17 +410,17 @@ export const PhotoHistoryModal: React.FC<PhotoHistoryModalProps> = ({
 
       toast({
         title: t("success"),
-        description: `${selectedArray.length} ${t("photoDeleted")}`,
+        description: `${deletedCount} ${t("photoDeleted")}`,
       });
     } catch (error) {
-      console.error('Ошибка удаления фотографий:', error);
+      console.error('Ошибка удаления всех фотографий:', error);
       toast({
         title: t("error"),
         description: t("failedToDeletePhotos") || "Не удалось удалить фотографии",
         variant: "destructive",
       });
     } finally {
-      setDeletingIds(new Set());
+      setIsDeletingAll(false);
     }
   };
 
@@ -463,18 +544,32 @@ export const PhotoHistoryModal: React.FC<PhotoHistoryModalProps> = ({
                           }
                         </span>
                       </label>
-                      {selectedPhotos.size > 0 && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={handleDeleteSelected}
-                          disabled={deletingIds.size > 0}
-                          className="flex items-center gap-2"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          {t("deletePhoto")} ({selectedPhotos.size})
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {activeTab === 'user' && userPhotosList.length > 0 && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleDeleteAllUploaded}
+                            disabled={isDeletingAll}
+                            className="flex items-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            {isDeletingAll ? t("uploading") || "Удаление..." : t("clearAll") || `Удалить все (${userPhotosList.length})`}
+                          </Button>
+                        )}
+                        {selectedPhotos.size > 0 && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleDeleteSelected}
+                            disabled={deletingIds.size > 0}
+                            className="flex items-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            {t("deletePhoto")} ({selectedPhotos.size})
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )}
                   
@@ -547,7 +642,7 @@ export const PhotoHistoryModal: React.FC<PhotoHistoryModalProps> = ({
                           </div>
                         )}
                         {(photo.source === 'user' || photo.type === 'user') && (
-                          <div className="flex items-center gap-1 bg-purple-500/90 text-white px-2 py-1 rounded-full text-xs">
+                          <div className="flex items-center gap-1 bg-primary/90 text-white px-2 py-1 rounded-full text-xs">
                             <Upload className="w-3 h-3" />
                             <span>{t("uploaded")}</span>
                           </div>

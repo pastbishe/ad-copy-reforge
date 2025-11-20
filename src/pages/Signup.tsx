@@ -170,7 +170,7 @@ const Signup = () => {
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t border-border" />
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
+                <div className="relative flex justify-center" style={{ fontSize: "clamp(0.625rem, 0.8vw, 0.75rem)" }}>
                   <span className="bg-card px-2 text-muted-foreground">{t("or")}</span>
                 </div>
               </div>

@@ -117,8 +117,8 @@ const Home = () => {
           <h2 className="text-5xl font-bold text-center mb-20 fade-in" style={{ animation: 'fade-in 0.6s ease-out' }}>{t("howItWorks")}</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: Upload, title: t("step1Title"), desc: t("step1Desc"), color: "from-blue-500 to-purple-500" },
-              { icon: Wand2, title: t("step2Title"), desc: t("step2Desc"), color: "from-purple-500 to-pink-500" },
+              { icon: Upload, title: t("step1Title"), desc: t("step1Desc"), color: "from-blue-500 to-amber-700" },
+              { icon: Wand2, title: t("step2Title"), desc: t("step2Desc"), color: "from-amber-700 to-pink-500" },
               { icon: Download, title: t("step3Title"), desc: t("step3Desc"), color: "from-pink-500 to-orange-500" }
             ].map((step, i) => (
               <div key={i} className="relative group fade-in" style={{ animation: `fade-in 0.6s ease-out ${0.2 * (i + 1)}s both` }}>

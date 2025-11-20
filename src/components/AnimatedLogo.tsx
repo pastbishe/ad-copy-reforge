@@ -28,8 +28,8 @@ export const AnimatedLogo = () => {
   };
 
   // Универсальный градиент для всех тем
-  const universalGradient = 'linear-gradient(90deg, #06b6d4, #8b5cf6, #ec4899, #f59e0b, #06b6d4)';
-  const baseColor = '#8b5cf6'; // purple как базовый цвет
+  const universalGradient = 'linear-gradient(90deg, #06b6d4, #8F7356, #ec4899, #f59e0b, #06b6d4)';
+  const baseColor = '#8F7356'; // brown-gray как базовый цвет
 
   return (
     <div 
@@ -62,7 +62,7 @@ export const AnimatedLogo = () => {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           animation: isTypingComplete ? 'gradientFlow 8s linear infinite' : 'none',
-          filter: 'drop-shadow(0 0 6px rgba(139, 92, 207, 0.4))',
+          filter: 'drop-shadow(0 0 6px rgba(143, 115, 86, 0.4))',
           zIndex: 2,
           willChange: 'background-position',
         }}
@@ -73,7 +73,7 @@ export const AnimatedLogo = () => {
       
       {/* Hover indicator */}
       <div 
-        className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 transition-all duration-300 group-hover:w-full opacity-0 group-hover:opacity-70"
+        className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-500 via-amber-700 to-pink-500 transition-all duration-300 group-hover:w-full opacity-0 group-hover:opacity-70"
         style={{ zIndex: 3 }}
       />
 
@@ -89,7 +89,7 @@ export const AnimatedLogo = () => {
 
         /* Hover effect */
         .group:hover h1 {
-          filter: brightness(1.2) drop-shadow(0 0 8px rgba(139, 92, 207, 0.5)) !important;
+          filter: brightness(1.2) drop-shadow(0 0 8px rgba(143, 115, 86, 0.5)) !important;
           transform: scale(1.02);
         }
       `}</style>

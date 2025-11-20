@@ -18,7 +18,7 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
 
-    --primary: 262 83% 58%; /* Purple accent */
+    --primary: 30 25% 45%; /* Brown-gray accent */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 240 5% 96%; /* Light gray */
@@ -35,7 +35,7 @@ All colors MUST be HSL.
 
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 262 83% 58%;
+    --ring: 30 25% 45%;
 
     --radius: 0.5rem;
 
@@ -43,7 +43,7 @@ All colors MUST be HSL.
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     
     /* Subtle glow effects */
-    --glow-subtle: 0 0 20px rgba(139, 92, 246, 0.15);
+    --glow-subtle: 0 0 20px rgba(143, 115, 86, 0.15);
   }
 
   .dark {
@@ -57,7 +57,7 @@ All colors MUST be HSL.
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 262 83% 58%; /* Purple accent */
+    --primary: 30 25% 45%; /* Brown-gray accent */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 0% 15%; /* Medium gray */
@@ -66,7 +66,7 @@ All colors MUST be HSL.
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 60%;
 
-    --accent: 262 83% 58%;
+    --accent: 30 25% 45%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
@@ -74,10 +74,10 @@ All colors MUST be HSL.
 
     --border: 0 0% 20%;
     --input: 0 0% 15%;
-    --ring: 262 83% 58%;
+    --ring: 30 25% 45%;
 
     /* Subtle glow effects */
-    --glow-subtle: 0 0 20px rgba(139, 92, 246, 0.2);
+    --glow-subtle: 0 0 20px rgba(143, 115, 86, 0.2);
   }
 }
 

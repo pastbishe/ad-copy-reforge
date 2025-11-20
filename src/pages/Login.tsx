@@ -21,8 +21,8 @@ const Login = () => {
 
     if (!email || !password) {
       toast({
-        title: "Ошибка",
-        description: "Пожалуйста, заполните все поля",
+        title: t("error"),
+        description: t("fillAllFields"),
         variant: "destructive",
       });
       return;
@@ -51,8 +51,8 @@ const Login = () => {
       const { message: userMessage } = handleNetworkError(error);
       
       toast({
-        title: "Ошибка входа",
-        description: userMessage || error.message || "Неверный email или пароль",
+        title: t("error"),
+        description: userMessage || error.message || t("invalidEmailOrPassword"),
         variant: "destructive",
       });
     } finally {
@@ -185,7 +185,7 @@ const Login = () => {
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t border-border" />
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
+                <div className="relative flex justify-center" style={{ fontSize: "clamp(0.625rem, 0.8vw, 0.75rem)" }}>
                   <span className="bg-card px-2 text-muted-foreground">{t("or")}</span>
                 </div>
               </div>

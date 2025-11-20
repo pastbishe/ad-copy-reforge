@@ -1,0 +1,92 @@
+// Скрипт для применения миграции DELETE policy для user_photos
+// Использование: node apply_user_photos_delete_policy.js
+
+import pg from 'pg';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const { Client } = pg;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Читаем SQL из файла миграции
+const migrationPath = path.join(__dirname, 'supabase', 'migrations', '20250108000001_add_delete_policy_user_photos.sql');
+const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+
+// Connection string для Supabase PostgreSQL
+// Формат: postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres
+const DB_PASSWORD = process.env.SUPABASE_DB_PASSWORD || process.env.DB_PASSWORD;
+
+if (!DB_PASSWORD) {
+  console.error('❌ Ошибка: Пароль базы данных не установлен!');
+  console.log('\n📋 Инструкция:');
+  console.log('1. Откройте Supabase Dashboard: https://supabase.com/dashboard/project/ticugdxpzglbpymvfnyj');
+  console.log('2. Перейдите в Settings → Database');
+  console.log('3. Найдите Connection string (URI) или Connection pooling');
+  console.log('4. Скопируйте пароль из connection string');
+  console.log('5. Запустите скрипт с паролем:');
+  console.log('   Windows: $env:SUPABASE_DB_PASSWORD="ваш_пароль"; node apply_user_photos_delete_policy.js');
+  console.log('   Linux/Mac: export SUPABASE_DB_PASSWORD="ваш_пароль"; node apply_user_photos_delete_policy.js');
+  console.log('\nИли выполните SQL вручную через Supabase Dashboard SQL Editor');
+  console.log('\n📝 SQL для выполнения:');
+  console.log('─'.repeat(70));
+  console.log(migrationSQL);
+  console.log('─'.repeat(70));
+  process.exit(1);
+}
+
+const connectionString = `postgresql://postgres.ticugdxpzglbpymvfnyj:${DB_PASSWORD}@aws-0-us-east-1.pooler.supabase.com:6543/postgres`;
+
+async function applyMigration() {
+  console.log('🔄 Применение миграции DELETE policy для user_photos...\n');
+
+  const client = new Client({
+    connectionString: connectionString,
+    ssl: {
+      rejectUnauthorized: false
+    }
+  });
+
+  try {
+    await client.connect();
+    console.log('✅ Подключение к базе данных установлено\n');
+
+    // Выполняем SQL
+    console.log('🔄 Выполнение миграции...\n');
+    await client.query(migrationSQL);
+
+    console.log('✅ Миграция успешно применена!');
+    console.log('✅ DELETE policy для user_photos создана\n');
+    console.log('🎉 Готово! Теперь пользователи могут удалять свои фотографии.\n');
+
+    return true;
+  } catch (error) {
+    console.error('❌ Ошибка при применении миграции:', error.message);
+    
+    if (error.message.includes('password') || error.message.includes('authentication')) {
+      console.log('\n💡 Проверьте правильность пароля базы данных.');
+      console.log('   Получите его из Supabase Dashboard → Settings → Database\n');
+    } else if (error.message.includes('connection') || error.message.includes('timeout')) {
+      console.log('\n💡 Проверьте подключение к интернету и доступность Supabase.\n');
+    } else {
+      console.log('\n💡 Выполните SQL вручную через Supabase Dashboard SQL Editor:\n');
+      console.log('─'.repeat(70));
+      console.log(migrationSQL);
+      console.log('─'.repeat(70));
+    }
+    
+    return false;
+  } finally {
+    await client.end();
+  }
+}
+
+applyMigration()
+  .then(success => {
+    process.exit(success ? 0 : 1);
+  })
+  .catch(error => {
+    console.error('❌ Критическая ошибка:', error);
+    process.exit(1);
+  });

@@ -40,9 +40,16 @@ Webhook ожидает следующий JSON в теле POST запроса:
 ```json
 {
   "sourceUrl": "https://facebook.com/ads/library/...",
-  "userId": "uuid-пользователя"
+  "userId": "uuid-пользователя",
+  "operationNumber": "OP-20250117-123456",
+  "photoId": "uuid-записи-в-photos"
 }
 ```
+
+**Важно:**
+- `photoId` - ID записи в таблице `photos`, которая была создана ДО вызова вебхука
+- n8n должен обновить эту запись после скрапинга, установив `photo_url` и `status = 'completed'`
+- Это необходимо для того, чтобы триггер в БД сработал и вызвал Edge Function для обработки фотографий
 
 ### Пример запроса:
 
@@ -111,6 +118,8 @@ const SUPABASE_SERVICE_ROLE_KEY = 'YOUR_SERVICE_ROLE_KEY';
 const webhookData = $input.item.json;
 const userId = webhookData.userId;
 const sourceUrl = webhookData.sourceUrl;
+const operationNumber = webhookData.operationNumber;
+const photoId = webhookData.photoId; // ID записи в таблице photos
 
 // Валидация
 if (!userId || !sourceUrl) {
@@ -151,6 +160,8 @@ return [{
     jobId: jobId,
     sourceUrl: sourceUrl,
     scrapeJobId: jobId,
+    operationNumber: operationNumber, // Передаем номер операции
+    photoId: photoId, // ВАЖНО: Передаем photoId для обновления таблицы photos
     // Передаем исходные данные дальше
     ...webhookData
   }
@@ -219,11 +230,12 @@ const BUCKET_NAME = 'user-photos';
 const items = $input.all();
 const results = [];
 
-// Получаем базовые данные (userId, jobId, sourceUrl)
+// Получаем базовые данные (userId, jobId, sourceUrl, photoId)
 const firstItem = items[0].json;
 const userId = firstItem.userId || items.find(item => item.json.userId)?.json.userId;
 const jobId = firstItem.jobId || items.find(item => item.json.jobId)?.json.jobId;
 const sourceUrl = firstItem.sourceUrl || items.find(item => item.json.sourceUrl)?.json.sourceUrl;
+const photoId = firstItem.photoId || items.find(item => item.json.photoId)?.json.photoId; // ВАЖНО: для обновления таблицы photos
 
 if (!userId || !jobId) {
   throw new Error('Missing userId or jobId');
@@ -370,7 +382,8 @@ for (const image of images) {
         filename: filename,
         imageUrl: imageUrl,
         userId: userId,
-        jobId: jobId
+        jobId: jobId,
+        photoId: photoId // ВАЖНО: передаем photoId для обновления таблицы photos
       }
     });
     
@@ -399,7 +412,78 @@ return results.length > 0 ? results : [{
 
 ---
 
-## Узел 4: Function Node - Обновление статуса задания
+## Узел 4: Function Node - Обновление таблицы photos
+
+**ВАЖНО:** Этот узел должен быть ДО обновления статуса задания. Он обновляет таблицу `photos` с URL фотографий.
+
+**Код для Function Node:**
+
+```javascript
+// ⚠️ ВАЖНО: Замените YOUR_SERVICE_ROLE_KEY на ваш Service Role Key!
+const SUPABASE_URL = 'https://ticugdxpzglbpymvfnyj.supabase.co';
+const SUPABASE_SERVICE_ROLE_KEY = 'YOUR_SERVICE_ROLE_KEY';
+
+// Получаем все результаты обработки
+const items = $input.all();
+
+// Получаем photoId из первого элемента (должен быть передан из webhook)
+const firstItem = items[0].json;
+const photoId = firstItem.photoId || 
+                items.find(item => item.json.photoId)?.json.photoId;
+
+if (!photoId) {
+  console.warn('photoId не найден - пропускаем обновление таблицы photos');
+  // Продолжаем выполнение, но без обновления photos
+  return items;
+}
+
+// Собираем все URL успешно загруженных фотографий
+const successfulPhotos = items.filter(item => item.json.success === true);
+const photoUrls = successfulPhotos
+  .map(item => item.json.storageUrl || item.json.publicUrl)
+  .filter(url => url && typeof url === 'string');
+
+if (photoUrls.length === 0) {
+  console.warn('Нет URL фотографий для обновления таблицы photos');
+  // Продолжаем выполнение
+  return items;
+}
+
+// Объединяем URL через запятую (или можно использовать JSON массив)
+const photoUrlString = photoUrls.join(',');
+
+// Обновляем запись в таблице photos
+const updatePhotosUrl = `${SUPABASE_URL}/rest/v1/photos?id=eq.${photoId}`;
+const updatePhotosResponse = await fetch(updatePhotosUrl, {
+  method: 'PATCH',
+  headers: {
+    'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    'apikey': SUPABASE_SERVICE_ROLE_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  },
+  body: JSON.stringify({
+    photo_url: photoUrlString,
+    status: 'completed',
+    updated_at: new Date().toISOString()
+  })
+});
+
+if (!updatePhotosResponse.ok) {
+  const errorText = await updatePhotosResponse.text();
+  console.error('Failed to update photos table:', errorText);
+  // Не бросаем ошибку, продолжаем выполнение
+} else {
+  console.log(`Successfully updated photos table for photoId: ${photoId}`);
+}
+
+// Возвращаем данные для следующего узла
+return items;
+```
+
+---
+
+## Узел 5: Function Node - Обновление статуса задания
 
 **Код для Function Node:**
 

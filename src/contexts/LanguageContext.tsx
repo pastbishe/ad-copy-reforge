@@ -60,6 +60,7 @@ const translations: Translations = {
     passwordsDontMatch: "Passwords do not match",
     passwordTooShort: "Password must be at least 6 characters",
     invalidEmail: "Please enter a valid email",
+    invalidEmailOrPassword: "Invalid email or password",
     fillAllFields: "Please fill all fields",
     error: "Error",
     success: "Success",
@@ -112,8 +113,16 @@ const translations: Translations = {
     settings: "Settings",
     editProfile: "Edit Profile",
     usernameExists: "Username already taken",
+    usernameCannotBeEmpty: "Username cannot be empty",
     usernameUpdated: "Username updated successfully",
     passwordUpdated: "Password updated successfully",
+    passwordMismatch: "Passwords do not match",
+    updateDisplayName: "Update your display name",
+    enterUsername: "Enter username",
+    updateAccountPassword: "Update your account password",
+    currentAccountBalance: "Your current account balance",
+    choosePreferredLanguage: "Choose your preferred language",
+    choosePreferredTheme: "Choose your preferred theme",
     avatarUpdated: "Avatar updated successfully",
     
     // Footer
@@ -135,6 +144,13 @@ const translations: Translations = {
     // Studio specific
     competitorAds: "Competitor Ads",
     scrapingCompetitorAds: "Scraping competitor ads...",
+    scrapingStarted: "Scraping Started",
+    waitingForCompletion: "Waiting For Completion",
+    scrapingStartedDesc: "We are collecting competitor ads. This may take a few minutes.",
+    scrapingError: "An error occurred during scraping",
+    scrapingTakesLonger: "Scraping takes longer than expected. You will be redirected to the studio, where you can check the status later.",
+    photosStillProcessing: "Photos are still being processed. You will be redirected to the studio when they are ready.",
+    failedToLoadCompetitorPhotos: "Failed to load competitor photos",
     adsImported: "Ads imported",
     successfullyScraped: "Successfully scraped",
     competitorAdsCount: "competitor ads",
@@ -175,6 +191,7 @@ const translations: Translations = {
     activeUsers: "Active Users",
     adsCreated: "Ads Created",
     successRate: "Success Rate",
+    warning: "Warning",
     
     // Photo History
     photoHistory: "Photo History",
@@ -230,6 +247,8 @@ const translations: Translations = {
     scrapedPhotos: "Scraped Photos",
     noScrapedPhotos: "No scraped photos",
     scrapePhotosToSeeThemHere: "Start scraping to see photos here",
+    noPhotos: "No photos",
+    uploadPhotosToSeeThemHere: "Upload photos to see them here",
     
     // Photo loaded notification
     photoLoaded: "photo loaded",
@@ -290,6 +309,7 @@ const translations: Translations = {
     passwordsDontMatch: "Пароли не совпадают",
     passwordTooShort: "Пароль должен содержать минимум 6 символов",
     invalidEmail: "Введите корректный email",
+    invalidEmailOrPassword: "Неверный email или пароль",
     fillAllFields: "Пожалуйста, заполните все поля",
     error: "Ошибка",
     success: "Успешно",
@@ -342,8 +362,16 @@ const translations: Translations = {
     settings: "Настройки",
     editProfile: "Редактировать профиль",
     usernameExists: "Имя пользователя уже занято",
+    usernameCannotBeEmpty: "Имя пользователя не может быть пустым",
     usernameUpdated: "Имя пользователя обновлено",
     passwordUpdated: "Пароль успешно изменен",
+    passwordMismatch: "Пароли не совпадают",
+    updateDisplayName: "Обновите ваше отображаемое имя",
+    enterUsername: "Введите имя пользователя",
+    updateAccountPassword: "Обновите пароль вашего аккаунта",
+    currentAccountBalance: "Текущий баланс вашего аккаунта",
+    choosePreferredLanguage: "Выберите предпочитаемый язык",
+    choosePreferredTheme: "Выберите предпочитаемую тему",
     avatarUpdated: "Аватар обновлен",
     
     // Footer
@@ -365,9 +393,16 @@ const translations: Translations = {
     // Studio specific
     competitorAds: "Реклама конкурентов",
     scrapingCompetitorAds: "Сбор рекламы конкурентов...",
+    scrapingStarted: "Скрапинг Запущен",
+    waitingForCompletion: "Ожидание Завершения",
+    scrapingStartedDesc: "Мы собираем рекламы конкурентов. Это может занять несколько минут.",
+    scrapingError: "Произошла ошибка при скрапинге",
+    scrapingTakesLonger: "Скрапинг занимает больше времени, чем ожидалось. Вы будете перенаправлены в студию, где сможете проверить статус позже.",
+    photosStillProcessing: "Фотографии ещё обрабатываются. Вы будете перенаправлены в студию, когда они будут готовы.",
+    failedToLoadCompetitorPhotos: "Не удалось загрузить фотографии конкурентов",
     adsImported: "Реклама импортирована",
     successfullyScraped: "Успешно собрано",
-    competitorAdsCount: "рекламных объявлений конкурентов",
+    competitorAdsCount: "реклам конкурентов",
     uploadComplete: "Загрузка завершена",
     productsAdded: "товар(ов) добавлено",
     generatingVariants: "Создание вариантов",
@@ -405,6 +440,7 @@ const translations: Translations = {
     activeUsers: "Активных пользователей",
     adsCreated: "Создано рекламы",
     successRate: "Успешность",
+    warning: "Предупреждение",
     
     // Photo History
     photoHistory: "История фотографий",
@@ -460,6 +496,8 @@ const translations: Translations = {
     scrapedPhotos: "Фотографии после скрапинга",
     noScrapedPhotos: "Нет скрапленных фотографий",
     scrapePhotosToSeeThemHere: "Запустите скрапинг, чтобы увидеть фотографии здесь",
+    noPhotos: "Нет фотографий",
+    uploadPhotosToSeeThemHere: "Загрузите фотографии, чтобы увидеть их здесь",
     
     // Photo loaded notification
     photoLoaded: "Загружена 1 фотография",
@@ -596,6 +634,10 @@ const translations: Translations = {
     // Studio specific
     competitorAds: "Konkurrenzanzeigen",
     scrapingCompetitorAds: "Konkurrenzanzeigen werden gesammelt...",
+    scrapingStarted: "Scraping Gestartet",
+    waitingForCompletion: "Warten Auf Abschluss",
+    scrapingStartedDesc: "Wir sammeln Konkurrenzanzeigen. Dies kann einige Minuten dauern.",
+    scrapingError: "Beim Scraping ist ein Fehler aufgetreten",
     adsImported: "Anzeigen importiert",
     successfullyScraped: "Erfolgreich gesammelt",
     competitorAdsCount: "Konkurrenzanzeigen",
@@ -691,6 +733,8 @@ const translations: Translations = {
     noScrapedPhotos: "Keine gescrapten Fotos",
     scrapePhotosToSeeThemHere: "Starten Sie das Scraping, um Fotos hier zu sehen",
     qualityRelaxed: "Qualitätsanforderungen gelockert - akzeptieren die meisten Bilder",
+    noPhotos: "Keine Fotos",
+    uploadPhotosToSeeThemHere: "Laden Sie Fotos hoch, um sie hier zu sehen",
     
     // Photo loaded notification
     photoLoaded: "Foto geladen",
@@ -826,6 +870,10 @@ const translations: Translations = {
     // Studio specific
     competitorAds: "Reklamy konkurencji",
     scrapingCompetitorAds: "Zbieranie reklam konkurencji...",
+    scrapingStarted: "Scraping Rozpoczęty",
+    waitingForCompletion: "Oczekiwanie Na Zakończenie",
+    scrapingStartedDesc: "Zbieramy reklamy konkurencji. To może zająć kilka minut.",
+    scrapingError: "Wystąpił błąd podczas scrapingu",
     adsImported: "Reklamy zaimportowane",
     successfullyScraped: "Pomyślnie zebrano",
     competitorAdsCount: "reklam konkurencji",
@@ -921,6 +969,8 @@ const translations: Translations = {
     noScrapedPhotos: "Brak zdjęć po scrapingu",
     scrapePhotosToSeeThemHere: "Uruchom scraping, aby zobaczyć zdjęcia tutaj",
     qualityRelaxed: "Wymagania jakości złagodzone - akceptujemy większość obrazów",
+    noPhotos: "Brak zdjęć",
+    uploadPhotosToSeeThemHere: "Prześlij zdjęcia, aby zobaczyć je tutaj",
     
     // Photo loaded notification
     photoLoaded: "zdjęcie załadowane",

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
+import { flushSync } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, LogOut, ChevronLeft, ChevronRight, Plus, X, Menu, User, Sun, Moon, Monitor, History, Upload, Trash2, ZoomIn, ZoomOut, RotateCcw, Link as LinkIcon } from "lucide-react";
+import { Loader2, LogOut, ChevronLeft, ChevronRight, Plus, X, Menu, User, Flame, Moon, History, Upload, Trash2, ZoomIn, ZoomOut, RotateCcw, Link as LinkIcon } from "lucide-react";
 import { SnakeGame } from "@/components/SnakeGame";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { AnimatedSlider } from "@/components/AnimatedSlider";
@@ -20,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -42,23 +44,31 @@ import {
   startScrapingJobSimple,
   savePhotoImport,
   updatePhotoImport,
-  getUnprocessedCompletedPhotoImports,
-  getCompletedPhotoImports,
-  markPhotoImportAsProcessed,
-  isPhotoUrlAlreadyProcessed,
-  batchCheckPhotoUrlsAlreadyProcessed,
   getUrlHistory,
-  getUserCompetitorPhotos,
+  generateOperationNumber,
   deleteCompetitorPhoto,
   waitForScrapeJobCompletion,
   checkAndUpdateScrapeJobStatus,
+  getUserCompetitorPhotos,
+  getCompletedPhotoImports,
   type UrlHistoryItem
 } from "@/lib/scrapingUtils";
+import { 
+  checkExistingGeneration,
+  createGenerationRecord,
+  startGeneration,
+  createScrapedPhotoId,
+  getUserPhotoUrl,
+  type GenerationRequest
+} from "@/lib/generationUtils";
+import { GenerationProgress } from "@/components/GenerationProgress";
 type StudioState = "empty" | "loading" | "active";
+
 
 // Тип для хранения фотографии с ID из базы данных
 type ScrapedPhotoWithId = {
   file: File;
+  url?: string; // Оригинальный URL фотографии из Storage (для использования в Edge Function)
   dbId?: number; // ID из таблицы competitor_photos
   source?: 'competitor' | 'user' | 'upload'; // Источник фотографии
 };
@@ -107,7 +117,11 @@ const Studio = () => {
   const [uploadedProducts, setUploadedProducts] = useState<File[]>([]);
   const [scrapedPhotos, setScrapedPhotos] = useState<ScrapedPhotoWithId[]>([]); // Photos from scraping (left side)
   const [selectedScrapedPhotos, setSelectedScrapedPhotos] = useState<Set<number>>(new Set()); // Selected photo indices
+  const [selectedUserPhotos, setSelectedUserPhotos] = useState<Set<string>>(new Set()); // Selected user photo IDs
   const [userPhotos, setUserPhotos] = useState<PhotoHistoryItem[]>([]);
+  const [generationState, setGenerationState] = useState<'idle' | 'generating' | 'completed'>('idle');
+  const [currentGenerationId, setCurrentGenerationId] = useState<string | null>(null);
+  const [generatedResults, setGeneratedResults] = useState<string[]>([]);
   const [promptText, setPromptText] = useState("");
   const [isHoveringImage, setIsHoveringImage] = useState(false);
   const [isHoveringUserPhoto, setIsHoveringUserPhoto] = useState(false);
@@ -119,14 +133,12 @@ const Studio = () => {
   const [isLoadingScrapedPhotoHistory, setIsLoadingScrapedPhotoHistory] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
-  const [hasShownFirstEntryNotification, setHasShownFirstEntryNotification] = useState(false);
   const [urlHistory, setUrlHistory] = useState<UrlHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hoveredUrlId, setHoveredUrlId] = useState<string | null>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+  const [selectedUrl, setSelectedUrl] = useState<string | null>(null); // Текущая выбранная ссылка для фильтрации фотографий
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const lastCheckTimeRef = useRef<number>(0);
-  const isProcessingRef = useRef<boolean>(false);
   const [snakeEnabled, setSnakeEnabled] = useState(() => {
     const saved = localStorage.getItem("snake_enabled");
     return saved === null ? true : saved === "true";
@@ -176,18 +188,20 @@ const Studio = () => {
   // Фильтруем userPhotos, оставляя только фотографии, загруженные с устройства
   // (URL должен указывать на Supabase Storage)
   const uploadedUserPhotos = useMemo(() => {
+    // Все фотографии из user_photos были загружены пользователем с устройства
+    // Принимаем все фотографии, которые имеют URL (base64 data URL или Supabase Storage URL)
     return userPhotos.filter(photo => {
       const photoUrl = photo.original_url || photo.compressed_url || '';
-      // Проверяем, что URL указывает на Supabase Storage (загружено с устройства)
-      return photoUrl && (
-        photoUrl.includes('/storage/v1/object/public/') || 
-        photoUrl.includes('supabase.co/storage')
-      );
+      // Принимаем все фотографии с URL - это могут быть:
+      // 1. Base64 data URL (data:image/...) - сохранены в БД как base64
+      // 2. Supabase Storage URL - сохранены в Storage bucket
+      // 3. Любые другие валидные URL
+      return photoUrl && photoUrl.length > 0;
     });
   }, [userPhotos]);
 
   // Загружаем фотографии пользователя при инициализации
-  const loadUserPhotos = async () => {
+  const loadUserPhotos = useCallback(async () => {
     const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
     if (isDemoUserLocal || !user) return;
     
@@ -200,184 +214,145 @@ const Studio = () => {
     } finally {
       setIsLoadingPhotos(false);
     }
-  };
+  }, [user]);
 
-  // Функция для загрузки всех фотографий из Supabase Storage в раздел Scraped Photos
-  const loadPhotosFromSupabaseStorage = useCallback(async () => {
+  // ПРОСТОЕ РЕШЕНИЕ: Загружаем фотографии напрямую из таблицы photos
+  // Фильтруем по выбранной ссылке (selectedUrl), если она установлена
+  const loadPhotosDirectlyFromPhotosTable = useCallback(async (filterUrl?: string | null) => {
+    if (!user) {
+      console.log('loadPhotosDirectlyFromPhotosTable: пользователь не авторизован');
+      return;
+    }
+    
     const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
-    if (isDemoUserLocal || !user) return;
-
+    if (isDemoUserLocal) {
+      console.log('loadPhotosDirectlyFromPhotosTable: демо-пользователь, пропускаем');
+      return;
+    }
+    
     try {
-      console.log('loadPhotosFromSupabaseStorage: начинаем загрузку фотографий из Supabase Storage');
+      const urlToFilter = filterUrl !== undefined ? filterUrl : selectedUrl;
+      console.log('loadPhotosDirectlyFromPhotosTable: начинаем загрузку фотографий, фильтр по URL:', urlToFilter);
       
-      // Получаем фотографии конкурентов из таблицы competitor_photos
-      const competitorPhotos = await getUserCompetitorPhotos(user.id, 100);
-      console.log('loadPhotosFromSupabaseStorage: найдено фотографий конкурентов:', competitorPhotos.length);
-
-      // Получаем фотографии пользователя из таблицы user_photos
-      const userPhotosFromDb = await getUserPhotos(user.id, 100);
-      console.log('loadPhotosFromSupabaseStorage: найдено фотографий пользователя:', userPhotosFromDb.length);
-
-      // Собираем все URL из Supabase Storage
-      const storageUrls: Array<{ url: string; name: string; dbId?: number; source?: 'competitor' | 'user' }> = [];
-
-      // Добавляем фотографии конкурентов (storage_url)
-      for (const photo of competitorPhotos) {
-        if (photo.storage_url) {
-          storageUrls.push({
-            url: photo.storage_url,
-            name: photo.file_name || `competitor-photo-${photo.id}`,
-            dbId: photo.id,
-            source: 'competitor'
-          });
-        }
+      // Строим запрос с фильтрацией по URL, если он указан
+      // Показываем фотографии со статусом 'completed' или 'processing', если у них есть photo_url
+      let query = supabase
+        .from('photos')
+        .select('id, photo_url, url, created_at, status')
+        .eq('user_id', user.id)
+        .in('status', ['completed', 'processing'])
+        .not('photo_url', 'is', null);
+      
+      // Если указан URL для фильтрации, фильтруем по нему
+      if (urlToFilter) {
+        query = query.eq('url', urlToFilter);
       }
-
-      // Добавляем фотографии пользователя, которые хранятся в Supabase Storage
-      // Проверяем, что URL указывает на Supabase Storage (содержит /storage/v1/object/public/)
-      for (const photo of userPhotosFromDb) {
-        const photoUrl = photo.original_url || photo.compressed_url;
-        if (photoUrl && (photoUrl.includes('/storage/v1/object/public/') || photoUrl.includes('supabase.co/storage'))) {
-          storageUrls.push({
-            url: photoUrl,
-            name: photo.file_name || `user-photo-${photo.id}`
-          });
-        }
-      }
-
-      console.log('loadPhotosFromSupabaseStorage: всего URL из Supabase Storage:', storageUrls.length);
-
-      if (storageUrls.length === 0) {
-        console.log('loadPhotosFromSupabaseStorage: нет фотографий для загрузки');
+      
+      // Получаем завершенные импорты с photo_url, отсортированные по дате
+      const { data: photos, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(1); // Берем последний импорт для выбранной ссылки
+      
+      if (error) {
+        console.error('Ошибка загрузки фотографий:', error);
         return;
       }
-
-      // Загружаем фотографии и конвертируем в File объекты
-      const loadedFiles: ScrapedPhotoWithId[] = [];
       
-      // Получаем уже загруженные URL из scrapedPhotos, чтобы избежать дубликатов
-      // Используем имя файла для проверки дубликатов
-      const existingFileNames = new Set<string>();
-      setScrapedPhotos(prev => {
-        prev.forEach(item => {
-          existingFileNames.add(item.file.name);
-        });
-        return prev;
-      });
-
-      // Фильтруем URL, которые еще не загружены
-      const urlsToLoad = storageUrls.filter(({ url, name }) => {
-        const urlExtension = url.split('.').pop()?.split('?')[0] || 'jpg';
-        const fileName = name.includes('.') ? name : `${name}.${urlExtension}`;
-        if (existingFileNames.has(fileName)) {
-          console.log('loadPhotosFromSupabaseStorage: фотография уже загружена, пропускаем:', fileName);
-          return false;
-        }
-        return true;
-      });
-
-      console.log('loadPhotosFromSupabaseStorage: нужно загрузить фотографий:', urlsToLoad.length);
-
-      // Параллельная загрузка с ограничением количества одновременных запросов
-      const MAX_CONCURRENT = 5; // Максимум 5 одновременных загрузок
-      const loadImage = async ({ url, name, dbId, source }: typeof storageUrls[0]): Promise<ScrapedPhotoWithId | null> => {
-        try {
-          // Определяем имя файла для проверки дубликатов
-          const urlExtension = url.split('.').pop()?.split('?')[0] || 'jpg';
-          const fileName = name.includes('.') ? name : `${name}.${urlExtension}`;
-          
-          console.log('loadPhotosFromSupabaseStorage: загружаем фотографию:', url);
-          
-          // Проверяем, что URL валидный
-          if (!url || !url.startsWith('http')) {
-            console.error('loadPhotosFromSupabaseStorage: невалидный URL:', url);
-            return null;
-          }
-          
-          // Загружаем изображение с таймаутом и повторными попытками
-          const response = await fetchImageWithRetry(url, {
-            timeout: 30000, // 30 секунд для Supabase Storage
-            maxRetries: 3,
-            retryDelay: 1000
-          });
-
-          // Получаем blob
-          const blob = await response.blob();
-          
-          // Определяем расширение файла из URL или из content-type
-          const contentType = response.headers.get('content-type') || 'image/jpeg';
-          let extension = urlExtension;
-          if (contentType.includes('png')) extension = 'png';
-          else if (contentType.includes('gif')) extension = 'gif';
-          else if (contentType.includes('webp')) extension = 'webp';
-          else if (contentType.includes('jpeg') || contentType.includes('jpg')) extension = 'jpg';
-
-          // Создаем File объект
-          const finalFileName = name.includes('.') ? name : `${name}.${extension}`;
-          const file = new File([blob], finalFileName, { type: contentType });
-          
-          console.log('loadPhotosFromSupabaseStorage: фотография загружена:', finalFileName);
-          
-          return {
-            file,
-            dbId,
-            source: source || 'competitor'
-          };
-        } catch (error) {
-          console.error(`loadPhotosFromSupabaseStorage: ошибка обработки ${url}:`, error);
-          return null;
-        }
-      };
-
-      // Загружаем фотографии батчами
-      for (let i = 0; i < urlsToLoad.length; i += MAX_CONCURRENT) {
-        const batch = urlsToLoad.slice(i, i + MAX_CONCURRENT);
-        const results = await Promise.all(batch.map(loadImage));
+      if (!photos || photos.length === 0) {
+        console.log('loadPhotosDirectlyFromPhotosTable: нет завершенных импортов с фотографиями для URL:', urlToFilter);
+        // Если нет фотографий для выбранной ссылки, очищаем список
+        setScrapedPhotos([]);
+        return;
+      }
+      
+      // Берем последний импорт для выбранной ссылки
+      const lastImport = photos[0];
+      if (!lastImport.photo_url) {
+        console.log('loadPhotosDirectlyFromPhotosTable: photo_url пустой');
+        return;
+      }
+      
+      // Извлекаем URL фотографий
+      const extractPhotoUrls = (photoUrl: string): string[] => {
+        if (!photoUrl || photoUrl.trim().length === 0) return [];
         
-        // Фильтруем успешно загруженные файлы
-        for (const result of results) {
-          if (result) {
-            const fileName = result.file.name;
-            if (!existingFileNames.has(fileName)) {
-              loadedFiles.push(result);
-              existingFileNames.add(fileName);
-            }
+        try {
+          const parsed = JSON.parse(photoUrl);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((url): url is string => typeof url === 'string' && url.length > 0).map(url => url.trim());
+          } else if (typeof parsed === 'string') {
+            return [parsed.trim()];
+          }
+        } catch {
+          const urls = photoUrl.split(',').map(url => url.trim()).filter(url => url.length > 0);
+          if (urls.length > 0) {
+            return urls;
+          } else {
+            return [photoUrl.trim()];
           }
         }
-      }
-
-      console.log('loadPhotosFromSupabaseStorage: загружено файлов:', loadedFiles.length);
+        return [];
+      };
       
-      // Подсчитываем количество ошибок
-      const failedCount = urlsToLoad.length - loadedFiles.length;
-      if (failedCount > 0) {
-        console.warn(`loadPhotosFromSupabaseStorage: не удалось загрузить ${failedCount} из ${urlsToLoad.length} фотографий`);
+      const photoUrls = extractPhotoUrls(lastImport.photo_url);
+      const limitedPhotoUrls = photoUrls.slice(0, 15);
+      
+      if (limitedPhotoUrls.length === 0) {
+        console.log('loadPhotosDirectlyFromPhotosTable: не удалось извлечь URL фотографий');
+        return;
       }
-
-      // Добавляем загруженные файлы в scrapedPhotos
-      if (loadedFiles.length > 0) {
-        setScrapedPhotos(prev => {
-          // Фильтруем дубликаты по имени файла
-          const existingNames = new Set(prev.map(item => item.file.name));
-          const newFiles = loadedFiles.filter(item => !existingNames.has(item.file.name));
-          const updated = [...prev, ...newFiles];
-          console.log('loadPhotosFromSupabaseStorage: всего фотографий в scrapedPhotos:', updated.length);
+      
+      console.log('loadPhotosDirectlyFromPhotosTable: найдено фотографий:', limitedPhotoUrls.length);
+      
+      // Скачиваем фотографии и показываем их напрямую
+      const photoFiles: ScrapedPhotoWithId[] = [];
+      
+      for (const photoUrl of limitedPhotoUrls) {
+        try {
+          console.log('loadPhotosDirectlyFromPhotosTable: скачиваем фотографию:', photoUrl);
           
-          // Если есть загруженные фотографии, переводим студию в активное состояние
-          if (prev.length === 0 && newFiles.length > 0) {
-            setStudioState("active");
+          const response = await fetch(photoUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+          
+          if (!response.ok) {
+            console.error(`Ошибка загрузки ${photoUrl}: ${response.status}`);
+            continue;
           }
           
-          return updated;
+          const blob = await response.blob();
+          const fileName = photoUrl.split('/').pop() || `photo-${Date.now()}.jpg`;
+          const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
+          
+          photoFiles.push({
+            file,
+            source: 'competitor'
+          });
+        } catch (error) {
+          console.error(`Ошибка обработки ${photoUrl}:`, error);
+        }
+      }
+      
+      if (photoFiles.length > 0) {
+        console.log('loadPhotosDirectlyFromPhotosTable: успешно загружено фотографий:', photoFiles.length);
+        setScrapedPhotos(photoFiles);
+        setStudioState('active');
+        setDisplayMode('competitor');
+        setCurrentScrapedPhotoIndex(0);
+        
+        toast({
+          title: t("success") || "Успешно",
+          description: `Загружено ${photoFiles.length} фотографий`,
         });
-      } else if (failedCount > 0) {
-        // Если не удалось загрузить ни одной фотографии, но были попытки
-        console.error('loadPhotosFromSupabaseStorage: не удалось загрузить ни одной фотографии');
+      } else {
+        console.log('loadPhotosDirectlyFromPhotosTable: не удалось загрузить ни одной фотографии');
       }
     } catch (error) {
-      console.error('loadPhotosFromSupabaseStorage: ошибка загрузки фотографий из Supabase Storage:', error);
+      console.error('Ошибка загрузки фотографий из photos таблицы:', error);
     }
-  }, [user]);
+  }, [user, toast, t, selectedUrl]);
 
   // Функция для скачивания фотографий по URL и добавления в студию
   const downloadAndAddPhotosToStudio = async (photoUrls: string[]) => {
@@ -449,34 +424,40 @@ const Studio = () => {
           maxFileSize: 10 * 1024 * 1024 // 10MB
         });
 
-        // Загрузка в Supabase Storage
-        const originalUrl = await uploadImageToSupabase(
+        // Загрузка в таблицу (создает запись с оригиналом)
+        const originalResult = await uploadImageToSupabase(
           compressed.originalFile,
           'user-photos',
           'originals',
           user.id
         );
+        const originalUrl = originalResult.url;
 
-        const compressedUrl = await uploadImageToSupabase(
-          compressed.file,
-          'user-photos',
-          'compressed',
-          user.id
-        );
+        // Обновляем запись сжатым файлом, если есть ID
+        let compressedUrl = originalUrl;
+        if (originalResult.id) {
+          const compressedResult = await uploadImageToSupabase(
+            compressed.file,
+            'user-photos',
+            'compressed',
+            user.id,
+            originalResult.id
+          );
+          compressedUrl = compressedResult.url;
 
-        // Сохранение в базу данных
-        await savePhotoToDatabase({
-          userId: user.id,
-          originalUrl,
-          compressedUrl,
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type,
-          width: validation.dimensions.width,
-          height: validation.dimensions.height,
-          qualityScore: validation.qualityScore,
-          isValid: validation.isValid
-        });
+          // Обновляем запись с метаданными
+          const { supabase } = await import('@/integrations/supabase/client');
+          await supabase
+            .from('user_photos')
+            .update({
+              width: validation.dimensions.width,
+              height: validation.dimensions.height,
+              quality_score: validation.qualityScore,
+              is_valid: validation.isValid
+            })
+            .eq('id', originalResult.id)
+            .eq('user_id', user.id);
+        }
 
         // Добавляем файл в студию
         processedFiles.push(compressed.file);
@@ -551,260 +532,231 @@ const Studio = () => {
     }
   };
 
-  // Функция для проверки и обработки завершенных импортов
-  const processCompletedPhotoImports = useCallback(async (shouldRedirect: boolean = false, showNotification: boolean = false): Promise<boolean> => {
-    const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
-    if (isDemoUserLocal || !user) return false;
-
-    try {
-      // Получаем все незагруженные завершенные импорты
-      const completedImports = await getUnprocessedCompletedPhotoImports(user.id);
-      
-      console.log('processCompletedPhotoImports: найдено завершенных импортов:', completedImports.length);
-      
-      if (completedImports.length === 0) {
-        console.log('processCompletedPhotoImports: нет завершенных импортов для обработки');
-        return false;
-      }
-
-      // Извлекаем все photo_url из завершенных импортов
-      // photo_url может быть строкой с одним URL, JSON-массивом URL, или разделенными запятыми URL
-      const photoUrls: string[] = [];
-      const allExtractedUrls: string[] = [];
-      
-      for (const importItem of completedImports) {
-        if (!importItem.photo_url) {
-          console.log('processCompletedPhotoImports: пропущен импорт без photo_url:', importItem.id);
-          continue;
-        }
-        
-        console.log('processCompletedPhotoImports: обработка импорта:', importItem.id, 'photo_url:', importItem.photo_url);
-        
-        try {
-          // Пытаемся распарсить как JSON (массив URL)
-          const parsed = JSON.parse(importItem.photo_url);
-          if (Array.isArray(parsed)) {
-            const validUrls = parsed.filter((url): url is string => typeof url === 'string' && url.length > 0);
-            console.log('processCompletedPhotoImports: распарсен JSON массив, найдено URL:', validUrls.length);
-            allExtractedUrls.push(...validUrls);
-          } else if (typeof parsed === 'string') {
-            console.log('processCompletedPhotoImports: распарсен JSON строка');
-            allExtractedUrls.push(parsed);
-          }
-        } catch {
-          // Если не JSON, проверяем, разделены ли URL запятыми
-          const urls = importItem.photo_url.split(',').map(url => url.trim()).filter(url => url.length > 0);
-          if (urls.length > 1) {
-            console.log('processCompletedPhotoImports: найдено URL через запятую:', urls.length);
-            allExtractedUrls.push(...urls);
-          } else if (urls.length === 1) {
-            console.log('processCompletedPhotoImports: найден один URL');
-            allExtractedUrls.push(urls[0]);
-          } else {
-            // Если не удалось распарсить, используем как есть
-            console.log('processCompletedPhotoImports: используем photo_url как есть');
-            allExtractedUrls.push(importItem.photo_url);
-          }
-        }
-      }
-      
-      // Фильтруем дубликаты через батч-проверку (оптимизированная версия)
-      console.log('processCompletedPhotoImports: проверяем дубликаты для', allExtractedUrls.length, 'URL');
-      if (allExtractedUrls.length > 0) {
-        const processedUrls = await batchCheckPhotoUrlsAlreadyProcessed(user.id, allExtractedUrls);
-        for (const url of allExtractedUrls) {
-          if (!processedUrls.has(url.trim())) {
-            photoUrls.push(url);
-          } else {
-            console.log('processCompletedPhotoImports: URL уже был обработан, пропускаем:', url);
-          }
-        }
-      }
-
-      console.log('processCompletedPhotoImports: всего извлечено URL:', photoUrls.length);
-      console.log('processCompletedPhotoImports: URL:', photoUrls);
-
-      if (photoUrls.length === 0) {
-        console.log('processCompletedPhotoImports: нет URL для загрузки');
-        return false;
-      }
-
-      // Скачиваем и добавляем фотографии в студию
-      console.log('processCompletedPhotoImports: начинаем загрузку фотографий...');
-      await downloadAndAddPhotosToStudio(photoUrls);
-      console.log('processCompletedPhotoImports: фотографии загружены');
-
-      // Отмечаем все импорты как обработанные
-      for (const importItem of completedImports) {
-        try {
-          await markPhotoImportAsProcessed(importItem.id);
-          console.log('processCompletedPhotoImports: импорт отмечен как обработанный:', importItem.id);
-        } catch (error) {
-          console.error(`Ошибка отметки импорта ${importItem.id}:`, error);
-        }
-      }
-
-      // Переводим студию в активное состояние
-      setStudioState("active");
-      
-      // Перенаправляем на студию, если нужно и мы не на странице студии
-      if (shouldRedirect && location.pathname !== '/studio') {
-        navigate('/studio', { 
-          state: { 
-            autoLoaded: true,
-            photoCount: photoUrls.length 
-          } 
-        });
-      }
-
-      // Показываем уведомление только если это первый вход и флаг установлен
-      if (showNotification && !hasShownFirstEntryNotification) {
-        const photoCount = photoUrls.length;
-        
-        // Формируем текст уведомления в зависимости от языка
-        let notificationText = "";
-        if (language === "ru") {
-          // Русский: "Загружена 1 фотография", "Загружено 2-4 фотографии" или "Загружено X фотографий"
-          if (photoCount === 1) {
-            notificationText = t("photoLoaded");
-          } else if (photoCount >= 2 && photoCount <= 4) {
-            notificationText = t("photosLoaded2to4").replace("{count}", photoCount.toString());
-          } else {
-            notificationText = t("photosLoaded").replace("{count}", photoCount.toString());
-          }
-        } else {
-          // Английский, немецкий, польский: "1 photo loaded" или "X photos loaded"
-          const photoWord = photoCount === 1 ? t("photoLoaded") : t("photosLoaded");
-          notificationText = `${photoCount} ${photoWord}`;
-        }
-        
-        toast({
-          title: notificationText,
-          className: "toast-wave-animation",
-        });
-        
-        setHasShownFirstEntryNotification(true);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Ошибка обработки завершенных импортов:', error);
-      return false;
-    }
-  }, [user, language, t, toast, navigate, location.pathname, setStudioState, setHasShownFirstEntryNotification, downloadAndAddPhotosToStudio, loadUserPhotos]);
-
   // URL webhook n8n для импорта ссылки рекламы конкурента
   const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_SCRAPING_WEBHOOK_URL || '';
 
   // Функция для ожидания и загрузки фотографий из таблицы photos
-  const waitAndLoadPhotosFromPhotosTable = async (photoId: string, maxAttempts: number = 30) => {
-    const delay = 8000; // 8 секунд между попытками (увеличено для N8N)
-    const initialDelay = 10000; // 10 секунд перед первой проверкой (даем N8N время начать обработку)
+  // Использует real-time подписку для мгновенной реакции на появление записи со статусом completed
+  // Фильтрует фотографии по выбранной ссылке (selectedUrl)
+  const waitAndLoadPhotosFromPhotosTable = async (photoId: string, importUrl: string, timeout: number = 180000) => {
+    // 3 минуты таймаут (180000 мс)
+    const initialDelay = 2000; // 2 секунды перед подпиской (даем N8N время начать обработку)
     
-    // Получаем jobId из записи photos
-    let jobId: string | null = null;
-    try {
-      const { data: photoRecord, error } = await supabase
-        .from('photos')
-        .select('operation_id')
-        .eq('id', photoId)
-        .single();
-      
-      if (!error && photoRecord?.operation_id) {
-        jobId = photoRecord.operation_id;
-      }
-    } catch (error) {
-      console.error('Ошибка получения jobId из photos:', error);
+    if (!user) {
+      console.error('waitAndLoadPhotosFromPhotosTable: пользователь не авторизован');
+      return false;
     }
     
-    // Ждем перед первой проверкой, чтобы дать N8N время начать обработку
+    // Ждем перед подпиской, чтобы дать N8N время начать обработку
     await new Promise(resolve => setTimeout(resolve, initialDelay));
     setProgress(55); // Обновляем прогресс после начальной задержки
     
-    // Если есть jobId, проверяем статус scrape_jobs
-    if (jobId) {
+    // Функция для извлечения URL из photo_url (поддерживает запятую, JSON массив, одну строку)
+    const extractPhotoUrls = (photoUrl: string): string[] => {
+      if (!photoUrl || photoUrl.trim().length === 0) {
+        return [];
+      }
+      
       try {
-        let status: 'running' | 'done' | 'error';
-        try {
-          status = await checkAndUpdateScrapeJobStatus(jobId);
-        } catch (statusError) {
-          console.error('Ошибка проверки статуса scrape_jobs:', statusError);
-          // Продолжаем проверку photos, даже если не удалось проверить scrape_jobs
-          status = 'running';
+        // Пытаемся распарсить как JSON (массив URL)
+        const parsed = JSON.parse(photoUrl);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((url): url is string => typeof url === 'string' && url.length > 0).map(url => url.trim());
+        } else if (typeof parsed === 'string') {
+          return [parsed.trim()];
         }
+      } catch {
+        // Если не JSON, проверяем, разделены ли URL запятыми
+        const urls = photoUrl.split(',').map(url => url.trim()).filter(url => url.length > 0);
+        if (urls.length > 0) {
+          return urls;
+        } else {
+          // Если не удалось распарсить, используем как есть
+          return [photoUrl.trim()];
+        }
+      }
+      
+      return [];
+    };
+    
+    // Функция для обработки завершенной записи - ПРОСТОЕ РЕШЕНИЕ: показываем фотографии напрямую
+    const processCompletedRecord = async (record: { id: string; photo_url: string | null }) => {
+      if (!record.photo_url) {
+        console.warn('waitAndLoadPhotosFromPhotosTable: запись без photo_url');
+        return false;
+      }
+      
+      console.log('waitAndLoadPhotosFromPhotosTable: найдена запись со статусом completed:', record.id);
+      console.log('waitAndLoadPhotosFromPhotosTable: photo_url:', record.photo_url);
+      
+      // Извлекаем URL фотографий
+      const photoUrls = extractPhotoUrls(record.photo_url);
+      
+      // Ограничиваем количество фотографий до 15
+      const limitedPhotoUrls = photoUrls.slice(0, 15);
+      
+      if (limitedPhotoUrls.length > 0) {
+        console.log('waitAndLoadPhotosFromPhotosTable: извлечено URL:', photoUrls.length, '(ограничено до', limitedPhotoUrls.length, ')');
+        console.log('waitAndLoadPhotosFromPhotosTable: URL:', limitedPhotoUrls);
         
-        // Если статус еще 'running', ждем завершения
-        if (status === 'running') {
-          let finalStatus: 'done' | 'error';
+        // ПРОСТОЕ РЕШЕНИЕ: Скачиваем фотографии и показываем их напрямую без обработки
+        setProgress(90);
+        
+        const photoFiles: ScrapedPhotoWithId[] = [];
+        
+        for (const photoUrl of limitedPhotoUrls) {
           try {
-            finalStatus = await waitForScrapeJobCompletion(jobId, {
-              maxAttempts: 60, // До 3 минут (60 * 3 секунды)
-              delay: 3000, // Проверяем каждые 3 секунды
-              onProgress: (attempt, maxAttempts) => {
-                const progressPercent = 55 + Math.floor((attempt / maxAttempts) * 35); // От 55% до 90%
-                setProgress(progressPercent);
+            console.log('Скачиваем фотографию:', photoUrl);
+            
+            const response = await fetch(photoUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
               }
             });
-          } catch (waitError) {
-            console.error('Ошибка ожидания завершения задания:', waitError);
-            finalStatus = 'error';
-          }
-          
-          if (finalStatus === 'error') {
-            toast({
-              title: t("error") || "Ошибка",
-              description: t("scrapingError") || "Произошла ошибка при скрапинге",
-              variant: "destructive",
+            
+            if (!response.ok) {
+              console.error(`Ошибка загрузки ${photoUrl}: ${response.status}`);
+              continue;
+            }
+            
+            const blob = await response.blob();
+            const fileName = photoUrl.split('/').pop() || `photo-${Date.now()}.jpg`;
+            const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
+            
+            photoFiles.push({
+              file,
+              source: 'competitor'
             });
-            setProgress(100);
-            setStudioState('active');
-            return false;
+          } catch (error) {
+            console.error(`Ошибка обработки ${photoUrl}:`, error);
           }
-        } else if (status === 'error') {
-          toast({
-            title: t("error") || "Ошибка",
-            description: t("scrapingError") || "Произошла ошибка при скрапинге",
-            variant: "destructive",
-          });
-          setProgress(100);
+        }
+        
+        if (photoFiles.length > 0) {
+          setScrapedPhotos(photoFiles);
           setStudioState('active');
+          setDisplayMode('competitor');
+          setCurrentScrapedPhotoIndex(0);
+          
+          setProgress(100);
+          
+          toast({
+            title: t("adsImported") || "Рекламы импортированы",
+            description: `${photoFiles.length} ${t("files") || "файлов"} ${t("successfullyUploaded") || "успешно загружено"}`,
+          });
+          
+          return true;
+        } else {
+          console.warn('waitAndLoadPhotosFromPhotosTable: не удалось загрузить ни одной фотографии');
           return false;
         }
-      } catch (error) {
-        console.error('Ошибка проверки статуса scrape_jobs:', error);
-        // Продолжаем проверку photos, даже если не удалось проверить scrape_jobs
+      } else {
+        console.warn('waitAndLoadPhotosFromPhotosTable: не удалось извлечь URL из photo_url');
+        return false;
       }
-    }
+    };
     
-    // Теперь проверяем таблицу photos
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      // Проверяем, обновил ли N8N запись в таблице photos
-      const completedImports = await getUnprocessedCompletedPhotoImports(user!.id);
-      const currentImport = completedImports.find(imp => imp.id === photoId);
+    return new Promise<boolean>((resolve) => {
+      let isResolved = false;
+      let channel: ReturnType<typeof supabase.channel> | null = null;
+      let timeoutId: NodeJS.Timeout | null = null;
       
-      if (currentImport && currentImport.photo_url) {
-        // N8N обновил photo_url, обрабатываем импорт
-        await processCompletedPhotoImports(false, false);
+      const cleanup = () => {
+        if (channel) {
+          console.log('waitAndLoadPhotosFromPhotosTable: отписываемся от канала');
+          channel.unsubscribe();
+          channel = null;
+        }
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      };
+      
+      const resolveOnce = (value: boolean) => {
+        if (!isResolved) {
+          isResolved = true;
+          cleanup();
+          resolve(value);
+        }
+      };
+      
+      // Создаем real-time подписку на изменения таблицы photos
+      console.log('waitAndLoadPhotosFromPhotosTable: создаем real-time подписку для user_id:', user.id);
+      channel = supabase
+        .channel(`photos-completed-${photoId}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'photos',
+            filter: `user_id=eq.${user.id}`,
+          },
+          async (payload) => {
+            console.log('waitAndLoadPhotosFromPhotosTable: получено событие UPDATE:', payload);
+            
+            const newRecord = payload.new as { id: string; status: string; photo_url: string | null; user_id: string; url?: string };
+            
+            // Проверяем, что это наша запись с правильным URL
+            if (
+              newRecord.status === 'completed' &&
+              newRecord.photo_url &&
+              newRecord.photo_url.trim().length > 0 &&
+              newRecord.id === photoId &&
+              newRecord.user_id === user.id
+            ) {
+              // Дополнительно проверяем, что URL записи соответствует импортированной ссылке
+              if (newRecord.url && newRecord.url === importUrl) {
+                console.log('waitAndLoadPhotosFromPhotosTable: найдена завершенная запись через real-time для URL:', importUrl);
+                
+                const success = await processCompletedRecord(newRecord);
+                resolveOnce(success);
+              } else {
+                console.log('waitAndLoadPhotosFromPhotosTable: запись не соответствует выбранной ссылке, пропускаем');
+              }
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('waitAndLoadPhotosFromPhotosTable: статус подписки:', status);
+          
+          if (status === 'SUBSCRIBED') {
+            console.log('waitAndLoadPhotosFromPhotosTable: подписка активна, ждем обновления...');
+            setProgress(60);
+            
+            // Также проверяем текущее состояние записи (на случай, если она уже completed)
+            supabase
+              .from('photos')
+              .select('id, photo_url, status, url')
+              .eq('id', photoId)
+              .single()
+              .then(({ data, error }) => {
+                if (!error && data && data.status === 'completed' && data.photo_url) {
+                  // Проверяем, что URL записи соответствует импортированной ссылке
+                  if (data.url && data.url === importUrl) {
+                    console.log('waitAndLoadPhotosFromPhotosTable: запись уже completed, обрабатываем сразу для URL:', importUrl);
+                    processCompletedRecord(data).then(resolveOnce);
+                  } else {
+                    console.log('waitAndLoadPhotosFromPhotosTable: запись не соответствует выбранной ссылке, пропускаем');
+                  }
+                }
+              });
+          }
+        });
+      
+      // Устанавливаем таймаут
+      timeoutId = setTimeout(() => {
+        console.log('waitAndLoadPhotosFromPhotosTable: таймаут, переводим в активное состояние');
         setProgress(100);
         setStudioState('active');
-        return true;
-      }
-      
-      // Обновляем прогресс
-      setProgress(90 + (attempt / maxAttempts) * 5); // Прогресс от 90% до 95%
-      
-      // Ждем перед следующей попыткой
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-    
-    // Если после всех попыток фотографий нет, переводим в активное состояние
-    setProgress(100);
-    setStudioState('active');
-    toast({
-      title: t("warning"),
-      description: "Фотографии еще не загружены. Они появятся автоматически, когда будут готовы.",
+        toast({
+          title: t("warning") || "Предупреждение",
+          description: "Фотографии еще не загружены. Они появятся автоматически, когда будут готовы.",
+        });
+        resolveOnce(false);
+      }, timeout);
     });
-    return false;
   };
 
   // Функция для загрузки истории ссылок
@@ -824,6 +776,31 @@ const Studio = () => {
       setIsLoadingHistory(false);
     }
   }, [user]);
+
+  // Функция для загрузки фотографий по выбранной ссылке из истории
+  const loadPhotosForUrl = useCallback(async (urlToLoad: string) => {
+    if (!user) {
+      console.log('loadPhotosForUrl: пользователь не авторизован');
+      return;
+    }
+    
+    const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
+    if (isDemoUserLocal) {
+      console.log('loadPhotosForUrl: демо-пользователь, пропускаем');
+      return;
+    }
+    
+    console.log('loadPhotosForUrl: загружаем фотографии для URL:', urlToLoad);
+    
+    // Устанавливаем выбранную ссылку
+    setSelectedUrl(urlToLoad);
+    
+    // Очищаем старые фотографии
+    setScrapedPhotos([]);
+    
+    // Загружаем фотографии для выбранной ссылки
+    await loadPhotosDirectlyFromPhotosTable(urlToLoad);
+  }, [user, loadPhotosDirectlyFromPhotosTable]);
 
   const handleImport = useCallback(async (importUrlParam?: string) => {
     const urlToImport = importUrlParam || url;
@@ -851,6 +828,10 @@ const Studio = () => {
     // Для демо-пользователей используем старую логику
     if (isDemoUserLocal || !N8N_WEBHOOK_URL) {
       console.log('Используется демо-логика или N8N_WEBHOOK_URL не установлен');
+      // Очищаем старые скрапленные фотографии при начале нового импорта
+      setScrapedPhotos([]);
+      // Устанавливаем выбранную ссылку для фильтрации фотографий
+      setSelectedUrl(urlToImport);
       setStudioState("loading");
       setProgress(0);
       
@@ -885,6 +866,10 @@ const Studio = () => {
 
     // Для авторизованных пользователей вызываем вебхук N8N
     console.log('Начинаем импорт для авторизованного пользователя');
+    // Очищаем старые скрапленные фотографии при начале нового импорта
+    setScrapedPhotos([]);
+    // Устанавливаем выбранную ссылку для фильтрации фотографий
+    setSelectedUrl(urlToImport);
     setIsLoadingPhotos(true);
     setStudioState("loading");
     setProgress(0);
@@ -895,27 +880,69 @@ const Studio = () => {
         throw new Error('Пользователь не авторизован');
       }
 
-      console.log('Сохраняем запись об импорте в таблицу photos');
-      // Сохраняем запись об импорте в таблицу photos
-      const photoId = await savePhotoImport(userId, urlToImport, 'pending');
-      console.log('Запись сохранена, photoId:', photoId);
-      
-      // Обновляем прогресс после сохранения записи
-      setProgress(10);
+      // Генерируем уникальный номер операции (читаемый формат для n8n)
+      const operationNumber = generateOperationNumber();
+      console.log('Сгенерирован номер операции:', operationNumber);
 
+      // ВАЖНО: Сначала создаем запись в photos ДО вызова вебхука
+      // Это нужно, чтобы n8n мог обновить эту запись после скрапинга
+      // Создаем временную запись с operationNumber, которую n8n сможет найти и обновить
+      let photoId: string;
+      try {
+        // Создаем запись с operationNumber в качестве временного идентификатора
+        // n8n должен использовать operationNumber для поиска и обновления этой записи
+        const { data: tempPhoto, error: tempError } = await supabase
+          .from('photos')
+          .insert({
+            user_id: userId,
+            url: urlToImport,
+            photo_url: null,
+            status: 'pending',
+            // Временно сохраняем operationNumber в operation_id (n8n должен его использовать)
+            // После получения job.id обновим operation_id
+          })
+          .select('id')
+          .single();
+        
+        if (tempError || !tempPhoto) {
+          throw new Error(`Ошибка создания записи в photos: ${tempError?.message || 'Неизвестная ошибка'}`);
+        }
+        
+        photoId = tempPhoto.id;
+        console.log('Создана запись в photos ДО вызова вебхука, photoId:', photoId);
+      } catch (createError) {
+        console.error('Ошибка создания записи в photos:', createError);
+        throw createError;
+      }
+
+      // Теперь запускаем скрапинг через упрощенный webhook с номером операции
+      // Передаем photoId, чтобы n8n мог обновить правильную запись
       console.log('Отправляем запрос на вебхук:', N8N_WEBHOOK_URL);
-      // Обновляем прогресс перед отправкой запроса
       setProgress(20);
       
-      // Запускаем скрапинг через упрощенный webhook
-      const job = await startScrapingJobSimple(urlToImport, userId, N8N_WEBHOOK_URL);
+      // Запускаем скрапинг через упрощенный webhook с номером операции и photoId
+      const job = await startScrapingJobSimple(urlToImport, userId, N8N_WEBHOOK_URL, operationNumber, photoId);
       console.log('Вебхук ответил, job:', job);
+      console.log('Job ID (будет использован как operation_id):', job.id);
+      
+      // Обновляем запись в photos с job.id как operation_id
+      const { error: updateError } = await supabase
+        .from('photos')
+        .update({
+          operation_id: job.id,
+          status: 'processing'
+        })
+        .eq('id', photoId);
+      
+      if (updateError) {
+        console.error('Ошибка обновления записи в photos:', updateError);
+        // Не бросаем ошибку, так как запись уже создана и вебхук уже вызван
+      } else {
+        console.log('Запись обновлена, photoId:', photoId, 'operation_id:', job.id);
+      }
       
       // Обновляем прогресс после получения ответа от вебхука
       setProgress(40);
-      
-      // Обновляем запись в photos с operation_id и статусом processing
-      await updatePhotoImport(photoId, 'processing', job.id);
       
       // Обновляем прогресс
       setProgress(50);
@@ -927,7 +954,8 @@ const Studio = () => {
 
       // Ждем, пока N8N обновит таблицу photos с photo_url
       // N8N должен обновить запись, установив photo_url и status = 'completed'
-      await waitAndLoadPhotosFromPhotosTable(photoId);
+      // Передаем URL для фильтрации фотографий
+      await waitAndLoadPhotosFromPhotosTable(photoId, urlToImport);
       
       // Обновляем прогресс до 100%
       setProgress(100);
@@ -979,7 +1007,7 @@ const Studio = () => {
     } finally {
       setIsLoadingPhotos(false);
     }
-  }, [url, user, toast, t, N8N_WEBHOOK_URL, processCompletedPhotoImports, setStudioState, setProgress, setPromptText, setIsLoadingPhotos, supabase, navigate, loadUrlHistory]);
+  }, [url, user, toast, t, N8N_WEBHOOK_URL, setStudioState, setProgress, setPromptText, setIsLoadingPhotos, supabase, navigate, loadUrlHistory]);
 
   // Проверяем, есть ли URL конкурента или scrapeJobId в состоянии навигации
   useEffect(() => {
@@ -987,6 +1015,7 @@ const Studio = () => {
     const scrapeJobId = location.state?.scrapeJobId;
     const autoLoaded = location.state?.autoLoaded;
     const hasCompletedImports = location.state?.hasCompletedImports;
+    const selectedUrlFromState = location.state?.selectedUrl;
     
     if (competitorUrl) {
       setUrl(competitorUrl);
@@ -996,21 +1025,24 @@ const Studio = () => {
       }, 500);
     }
     
-    // Убрали логику работы с scrape_jobs, так как используем только таблицу photos
-    
-    // Если есть завершенные импорты, обрабатываем их сразу
-    if (hasCompletedImports && user) {
-      // Обрабатываем завершенные импорты без уведомления и редиректа
-      processCompletedPhotoImports(false, false);
-    }
-    
-    // Если фотографии были автоматически загружены, переводим студию в активное состояние
-    if (autoLoaded && user) {
-      setStudioState("active");
+    // Если выбрана ссылка из истории, загружаем фотографии для неё
+    if (selectedUrlFromState && user) {
+      console.log('Studio: загружаем фотографии для выбранной ссылки из истории:', selectedUrlFromState);
+      loadPhotosForUrl(selectedUrlFromState);
       // Очищаем состояние навигации, чтобы не обрабатывать повторно
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, user, handleImport, setStudioState, navigate, processCompletedPhotoImports]);
+    
+    // Убрали логику работы с scrape_jobs, так как используем только таблицу photos
+    
+    // Если фотографии были автоматически загружены, загружаем их из таблицы photos
+    if (autoLoaded && user && !selectedUrlFromState) {
+      // Загружаем фотографии напрямую из таблицы photos
+      loadPhotosDirectlyFromPhotosTable();
+      // Очищаем состояние навигации, чтобы не обрабатывать повторно
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, user, handleImport, navigate, loadPhotosDirectlyFromPhotosTable, loadPhotosForUrl]);
 
   // Обработка импорта из query string (когда переходим с параметром import)
   useEffect(() => {
@@ -1046,112 +1078,175 @@ const Studio = () => {
     };
   }, [handleImport]);
 
-  // Проверяем наличие фотографий конкурентов при загрузке Studio
+  // Загружаем фотографии пользователя при инициализации
   useEffect(() => {
-    const checkCompetitorPhotos = async () => {
-      const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
-      if (isDemoUserLocal || !user) return;
+    if (user) {
+      loadUserPhotos();
+    }
+  }, [user, loadUserPhotos]);
+
+  // Проверяем наличие фотографий конкурентов при загрузке Studio
+  // Вся обработка импортов происходит на странице StudioEmpty, здесь только проверяем состояние
+  useEffect(() => {
+    const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
+    if (isDemoUserLocal || !user) return;
+    
+    // Просто проверяем, есть ли фотографии в scrapedPhotos
+    if (scrapedPhotos.length > 0) {
+      setStudioState("active");
+    } else {
+      setStudioState("empty");
+    }
+  }, [user, scrapedPhotos.length]);
+
+  // Загружаем скрапленные фотографии из таблицы photos при инициализации
+  // Используем тот же источник данных, что и для истории
+  const loadScrapedPhotosFromDatabase = useCallback(async () => {
+    const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
+    if (isDemoUserLocal || !user) return;
+    
+    try {
+      console.log('loadScrapedPhotosFromDatabase: начинаем загрузку скрапленных фотографий');
       
-      // Если уже есть загруженные фотографии в студии, не проверяем
-      if (scrapedPhotos.length > 0) {
-        setStudioState("active");
+      // Получаем все завершенные импорты из таблицы photos (как в loadScrapedPhotoHistory)
+      const completedImports = await getCompletedPhotoImports(user.id);
+      
+      if (!completedImports || completedImports.length === 0) {
+        console.log('loadScrapedPhotosFromDatabase: нет завершенных импортов');
         return;
       }
       
-      try {
-        // Загружаем фотографии из Supabase Storage
-        await loadPhotosFromSupabaseStorage();
+      // Извлекаем все URL фотографий из всех импортов
+      const allPhotoUrls: string[] = [];
+      
+      for (const importItem of completedImports) {
+        if (!importItem.photo_url) continue;
         
-        // Проверяем завершенные импорты из таблицы photos
-        const hasCompletedImports = await processCompletedPhotoImports(false, false);
+        // Извлекаем URL фотографий (может быть строка, JSON массив или разделенные запятыми)
+        let photoUrls: string[] = [];
         
-        // Если есть завершенные импорты, переводим в активное состояние
-        // (loadPhotosFromSupabaseStorage уже установит состояние в "active", если есть загруженные файлы)
-        if (hasCompletedImports) {
-          setStudioState("active");
-        } else {
-          // Проверяем, есть ли фотографии в scrapedPhotos после загрузки
-          // Даем небольшое время на обновление состояния
-          setTimeout(() => {
-            setScrapedPhotos(current => {
-              if (current.length > 0) {
-                setStudioState("active");
-              } else {
-                setStudioState("empty");
-              }
-              return current;
-            });
-          }, 200);
+        try {
+          const parsed = JSON.parse(importItem.photo_url);
+          if (Array.isArray(parsed)) {
+            photoUrls = parsed.filter((url): url is string => typeof url === 'string' && url.length > 0);
+          } else if (typeof parsed === 'string') {
+            photoUrls = [parsed.trim()];
+          }
+        } catch {
+          // Если не JSON, проверяем, разделены ли URL запятыми
+          const urls = importItem.photo_url.split(',').map(url => url.trim()).filter(url => url.length > 0);
+          if (urls.length > 0) {
+            photoUrls = urls;
+          } else {
+            photoUrls = [importItem.photo_url.trim()];
+          }
         }
-      } catch (error) {
-        console.error('Ошибка проверки фотографий конкурентов:', error);
-        // При ошибке остаемся в состоянии empty (форма импорта будет показана)
-        setStudioState("empty");
+        
+        allPhotoUrls.push(...photoUrls);
       }
-    };
-    
-    // Проверяем только при загрузке страницы или изменении пользователя
-    // Не проверяем при изменении scrapedPhotos, чтобы избежать бесконечных циклов
-    checkCompetitorPhotos();
-  }, [user, location.pathname, navigate, loadPhotosFromSupabaseStorage]);
+      
+      // Берем последние 15 фотографий
+      const limitedPhotoUrls = allPhotoUrls.slice(0, 15);
+      
+      if (limitedPhotoUrls.length === 0) {
+        console.log('loadScrapedPhotosFromDatabase: не удалось извлечь URL фотографий');
+        return;
+      }
+      
+      console.log('loadScrapedPhotosFromDatabase: найдено фотографий:', limitedPhotoUrls.length);
+      
+      // Преобразуем URL в File объекты
+      const photoFiles: ScrapedPhotoWithId[] = [];
+      
+      for (const photoUrl of limitedPhotoUrls) {
+        try {
+          console.log('loadScrapedPhotosFromDatabase: скачиваем фотографию:', photoUrl);
+          
+          const response = await fetch(photoUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+          
+          if (!response.ok) {
+            console.error(`Ошибка загрузки ${photoUrl}: ${response.status}`);
+            continue;
+          }
+          
+          const blob = await response.blob();
+          const fileName = photoUrl.split('/').pop() || `photo-${Date.now()}.jpg`;
+          const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
+          
+          photoFiles.push({
+            file,
+            url: photoUrl, // Сохраняем оригинальный URL для использования в Edge Function
+            source: 'competitor'
+          });
+        } catch (error) {
+          console.error(`Ошибка обработки фотографии ${photoUrl}:`, error);
+        }
+      }
+      
+      if (photoFiles.length > 0) {
+        console.log('loadScrapedPhotosFromDatabase: загружено фотографий:', photoFiles.length);
+        setScrapedPhotos(photoFiles);
+        setCurrentScrapedPhotoIndex(0);
+        // Если есть скрапленные фотографии, переключаемся в активное состояние
+        setStudioState(prev => prev === 'empty' ? 'active' : prev);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки скрапленных фотографий:', error);
+    }
+  }, [user]);
 
   // Загружаем фотографии пользователя при изменении пользователя
   useEffect(() => {
     const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
     if (user && !isDemoUserLocal) {
-      // Сбрасываем флаг при смене пользователя, чтобы уведомление показывалось для каждого пользователя
-      setHasShownFirstEntryNotification(false);
       loadUserPhotos();
-      // Загружаем фотографии из Supabase Storage
-      loadPhotosFromSupabaseStorage();
-      // Проверяем завершенные импорты при загрузке страницы (первый вход)
-      // Показываем уведомление только при первом входе в студию
-      processCompletedPhotoImports(false, true);
+      // Загружаем скрапленные фотографии при входе пользователя только если их еще нет
+      // Это предотвращает перезагрузку при каждом изменении user
+      if (scrapedPhotos.length === 0) {
+        loadScrapedPhotosFromDatabase();
+      }
     }
-  }, [user, loadPhotosFromSupabaseStorage]);
+  }, [user, loadScrapedPhotosFromDatabase, scrapedPhotos.length]);
+
+  // Автоматически переключаемся в режим split и активируем студию, если есть загруженные фотографии пользователя
+  useEffect(() => {
+    const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
+    if (isDemoUserLocal || !user) return;
+
+    const totalUserPhotos = uploadedProducts.length + uploadedUserPhotos.length;
+    
+    if (totalUserPhotos > 0) {
+      // Если есть загруженные фотографии пользователя, переключаемся в режим split
+      if (displayMode !== 'split') {
+        setDisplayMode('split');
+      }
+      
+      // Активируем студию, если она еще не активна
+      if (studioState !== 'active') {
+        setStudioState('active');
+      }
+      
+      // Показываем правую панель, если она скрыта
+      if (!isRightPanelVisible) {
+        setIsRightPanelVisible(true);
+      }
+      
+      // Устанавливаем индекс на первую фотографию, если текущий индекс невалиден
+      if (currentUserPhotoIndex >= totalUserPhotos) {
+        setCurrentUserPhotoIndex(0);
+      }
+    }
+  }, [uploadedProducts.length, uploadedUserPhotos.length, user, displayMode, studioState, currentUserPhotoIndex, isRightPanelVisible]);
 
   // Загружаем историю ссылок при загрузке компонента
   useEffect(() => {
     loadUrlHistory();
   }, [loadUrlHistory]);
 
-  // Периодическая проверка завершенных импортов (каждые 12 секунд)
-  // Проверяем на всех страницах, чтобы загружать фотографии сразу после того, как n8n их добавит
-  // Используем useRef для отслеживания последнего времени проверки, чтобы избежать дубликатов
-  useEffect(() => {
-    const isDemoUserLocal = localStorage.getItem("demo_user") === "true";
-    if (isDemoUserLocal || !user) return;
-
-    const interval = setInterval(() => {
-      const now = Date.now();
-      // Предотвращаем множественные одновременные вызовы
-      if (isProcessingRef.current) {
-        console.log('processCompletedPhotoImports: уже выполняется, пропускаем');
-        return;
-      }
-      
-      // Проверяем, прошло ли достаточно времени с последней проверки (минимум 10 секунд)
-      if (now - lastCheckTimeRef.current < 10000) {
-        console.log('processCompletedPhotoImports: слишком рано для следующей проверки');
-        return;
-      }
-      
-      lastCheckTimeRef.current = now;
-      isProcessingRef.current = true;
-      
-      // Загружаем фотографии из Supabase Storage
-      loadPhotosFromSupabaseStorage()
-        .then(() => {
-          // При периодической проверке не показываем уведомление и не редиректим
-          return processCompletedPhotoImports(false, false);
-        })
-        .finally(() => {
-          isProcessingRef.current = false;
-        });
-    }, 12000); // Проверяем каждые 12 секунд для более быстрой реакции
-
-    return () => clearInterval(interval);
-  }, [user, processCompletedPhotoImports, loadPhotosFromSupabaseStorage]);
 
 
   // Загрузка из localStorage
@@ -1235,6 +1330,234 @@ const Studio = () => {
       return fallbackUrl;
     }
     return photo.compressed_url || photo.original_url || '';
+  };
+
+  // Обработка выбора пользовательских фото для генерации
+  const handleToggleUserPhotoSelection = (photoId: string) => {
+    setSelectedUserPhotos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(photoId)) {
+        newSet.delete(photoId);
+      } else {
+        // Разрешаем выбрать только одно пользовательское фото
+        newSet.clear();
+        newSet.add(photoId);
+      }
+      return newSet;
+    });
+  };
+
+  // Обработка выбора скрапленных фото для генерации (только одно)
+  const handleToggleScrapedPhotoSelection = (index: number) => {
+    setSelectedScrapedPhotos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        // Разрешаем выбрать только одно скрапленное фото
+        newSet.clear();
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
+
+  // Запуск генерации объединенных фотографий
+  const handleStartGeneration = async () => {
+    if (!user) {
+      toast({
+        title: t("authRequired") || "Требуется авторизация",
+        description: t("authRequiredDesc") || "Пожалуйста, войдите в систему",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Проверяем, что выбрано ровно одно скрапленное фото и одно пользовательское
+    if (selectedScrapedPhotos.size !== 1 || selectedUserPhotos.size !== 1) {
+      toast({
+        title: t("selectionRequired") || "Требуется выбор",
+        description: t("selectOneScrapedAndOneUserPhoto") || "Выберите одно скрапленное фото и одно ваше фото",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const scrapedIndex = Array.from(selectedScrapedPhotos)[0];
+    const userPhotoIdOrTemp = Array.from(selectedUserPhotos)[0];
+    const scrapedPhoto = scrapedPhotos[scrapedIndex];
+
+    if (!scrapedPhoto) {
+      toast({
+        title: t("error") || "Ошибка",
+        description: t("scrapedPhotoNotFound") || "Скрапленное фото не найдено",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setGenerationState('generating');
+
+      let userPhotoId: string;
+      let userPhotoUrl: string;
+
+      // Проверяем, является ли это временным ID (uploadedProducts)
+      if (userPhotoIdOrTemp.startsWith('uploaded-')) {
+        // Находим файл в uploadedProducts
+        const tempIdParts = userPhotoIdOrTemp.split('-');
+        const fileName = tempIdParts.slice(1, -2).join('-');
+        const fileSize = parseInt(tempIdParts[tempIdParts.length - 2]);
+        const lastModified = parseInt(tempIdParts[tempIdParts.length - 1]);
+        
+        const uploadedFile = uploadedProducts.find(
+          f => f.name === fileName && f.size === fileSize && f.lastModified === lastModified
+        );
+
+        if (!uploadedFile) {
+          throw new Error(t("userPhotoNotFound") || "Пользовательское фото не найдено");
+        }
+
+        // Загружаем файл в Supabase и получаем ID
+        toast({
+          title: t("uploading") || "Загрузка",
+          description: t("uploadingPhotoForGeneration") || "Загружаем фото для генерации...",
+        });
+
+        const validation = await validateImageQuality(uploadedFile);
+        const compressed = await compressImage(uploadedFile, {
+          maxWidth: 1200,
+          maxHeight: 1200,
+          quality: 0.7,
+          maxFileSize: 10 * 1024 * 1024
+        });
+
+        const originalResult = await uploadImageToSupabase(
+          compressed.originalFile,
+          'user-photos',
+          'originals',
+          user.id
+        );
+
+        if (!originalResult.id) {
+          throw new Error(t("failedToUploadPhoto") || "Не удалось загрузить фото");
+        }
+
+        userPhotoId = originalResult.id;
+        userPhotoUrl = originalResult.url;
+
+        // Обновляем запись сжатым файлом
+        const compressedResult = await uploadImageToSupabase(
+          compressed.file,
+          'user-photos',
+          'compressed',
+          user.id,
+          originalResult.id
+        );
+
+        if (compressedResult.url) {
+          userPhotoUrl = compressedResult.url;
+        }
+
+        // Обновляем метаданные
+        await supabase
+          .from('user_photos')
+          .update({
+            width: validation.dimensions.width,
+            height: validation.dimensions.height,
+            quality_score: validation.qualityScore,
+            is_valid: validation.isValid
+          })
+          .eq('id', originalResult.id)
+          .eq('user_id', user.id);
+
+        // Обновляем список фотографий пользователя
+        await loadUserPhotos();
+      } else {
+        // Это ID из БД (uploadedUserPhotos)
+        userPhotoId = userPhotoIdOrTemp;
+        const url = await getUserPhotoUrl(userPhotoId);
+        if (!url) {
+          throw new Error(t("userPhotoNotFound") || "Пользовательское фото не найдено");
+        }
+        userPhotoUrl = url;
+      }
+
+      // Создаем ID для скрапленного фото
+      const scrapedPhotoId = createScrapedPhotoId(scrapedPhoto.file);
+      // Используем сохраненный URL или создаем blob URL как fallback
+      const scrapedPhotoUrl = scrapedPhoto.url || URL.createObjectURL(scrapedPhoto.file);
+
+      // Проверяем, есть ли уже генерация для этой комбинации
+      const existing = await checkExistingGeneration(user.id, scrapedPhotoId, userPhotoId);
+      
+      if (existing && existing.status === 'completed' && existing.generated_urls.length === 3) {
+        // Используем существующие результаты
+        setCurrentGenerationId(existing.id);
+        setGeneratedResults(existing.generated_urls);
+        setGenerationState('completed');
+        toast({
+          title: t("generationFound") || "Генерация найдена",
+          description: t("usingExistingGeneration") || "Используем ранее созданную генерацию",
+        });
+        return;
+      }
+
+      // Создаем запись о генерации
+      const generation = await createGenerationRecord(user.id, scrapedPhotoId, userPhotoId);
+      setCurrentGenerationId(generation.id);
+
+      // Запускаем генерацию
+      const request: GenerationRequest = {
+        scraped_photo_url: scrapedPhotoUrl,
+        scraped_photo_id: scrapedPhotoId,
+        user_photo_id: userPhotoId,
+        user_photo_url: userPhotoUrl
+      };
+
+      await startGeneration(request);
+
+      // GenerationProgress компонент будет polling статус
+    } catch (error) {
+      console.error('Ошибка запуска генерации:', error);
+      setGenerationState('idle');
+      setCurrentGenerationId(null);
+      toast({
+        title: t("error") || "Ошибка",
+        description: error instanceof Error ? error.message : t("generationError") || "Не удалось запустить генерацию",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Обработка завершения генерации
+  const handleGenerationComplete = (generatedUrls: string[]) => {
+    setGeneratedResults(generatedUrls);
+    setGenerationState('completed');
+    toast({
+      title: t("generationCompleted") || "Генерация завершена",
+      description: t("threeVariantsGenerated") || "Создано 3 варианта объединенных фотографий",
+    });
+  };
+
+  // Обработка ошибки генерации
+  const handleGenerationError = (error: string) => {
+    setGenerationState('idle');
+    setCurrentGenerationId(null);
+    toast({
+      title: t("generationFailed") || "Генерация не удалась",
+      description: error,
+      variant: "destructive",
+    });
+  };
+
+  // Сброс состояния генерации
+  const handleResetGeneration = () => {
+    setGenerationState('idle');
+    setCurrentGenerationId(null);
+    setGeneratedResults([]);
+    setSelectedScrapedPhotos(new Set());
+    setSelectedUserPhotos(new Set());
   };
 
   // Управление индексом текущей фотографии из Supabase
@@ -1393,37 +1716,41 @@ const Studio = () => {
             originalUrl = URL.createObjectURL(compressed.originalFile);
             compressedUrl = URL.createObjectURL(compressed.file);
           } else {
-            // Загрузка оригинального файла в Supabase
-            originalUrl = await uploadImageToSupabase(
+            // Загрузка оригинального файла в таблицу (создает запись)
+            const originalResult = await uploadImageToSupabase(
               compressed.originalFile,
               'user-photos',
               'originals',
               user.id
             );
+            originalUrl = originalResult.url;
 
-            // Загрузка сжатого файла в Supabase
-            compressedUrl = await uploadImageToSupabase(
-              compressed.file,
-              'user-photos',
-              'compressed',
-              user.id
-            );
-          }
+            // Обновляем запись сжатым файлом, если есть ID
+            if (originalResult.id) {
+              const compressedResult = await uploadImageToSupabase(
+                compressed.file,
+                'user-photos',
+                'compressed',
+                user.id,
+                originalResult.id
+              );
+              compressedUrl = compressedResult.url;
 
-          // Сохранение в базу данных только для авторизованных пользователей
-          if (!isDemoUserLocal && user) {
-            await savePhotoToDatabase({
-              userId: user.id,
-              originalUrl,
-              compressedUrl,
-              fileName: file.name,
-              fileSize: file.size,
-              mimeType: file.type,
-              width: validation.dimensions.width,
-              height: validation.dimensions.height,
-              qualityScore: validation.qualityScore,
-              isValid: validation.isValid
-            });
+              // Обновляем запись с метаданными
+              const { supabase } = await import('@/integrations/supabase/client');
+              await supabase
+                .from('user_photos')
+                .update({
+                  width: validation.dimensions.width,
+                  height: validation.dimensions.height,
+                  quality_score: validation.qualityScore,
+                  is_valid: validation.isValid
+                })
+                .eq('id', originalResult.id)
+                .eq('user_id', user.id);
+            } else {
+              compressedUrl = originalUrl; // Fallback
+            }
             
             // Обновляем список фотографий пользователя
             await loadUserPhotos();
@@ -1432,7 +1759,33 @@ const Studio = () => {
           processedFiles.push(compressed.file);
         } catch (error) {
           console.error('Ошибка обработки файла:', error);
-          errors.push(`${file.name}: Ошибка обработки`);
+          
+          // Получаем более конкретное сообщение об ошибке
+          let errorMessage = 'Ошибка обработки';
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          } else if (typeof error === 'string') {
+            errorMessage = error;
+          }
+          
+          // Переводим некоторые распространенные ошибки на русский
+          if (errorMessage.includes('Failed to load image') || errorMessage.includes('Не удалось загрузить изображение')) {
+            errorMessage = 'Не удалось загрузить изображение. Возможно, файл поврежден или имеет неподдерживаемый формат.';
+          } else if (errorMessage.includes('Ошибка загрузки:')) {
+            // Извлекаем конкретное сообщение об ошибке после двоеточия
+            const specificError = errorMessage.split('Ошибка загрузки:')[1]?.trim();
+            if (specificError) {
+              errorMessage = specificError;
+            } else {
+              errorMessage = 'Ошибка загрузки в хранилище. Проверьте подключение к интернету.';
+            }
+          } else if (errorMessage.includes('Ошибка сохранения в базу данных')) {
+            errorMessage = 'Ошибка сохранения в базу данных. Попробуйте еще раз.';
+          } else if (errorMessage.includes('Не удалось сжать изображение')) {
+            errorMessage = 'Не удалось обработать изображение. Попробуйте другой файл.';
+          }
+          
+          errors.push(`${file.name}: ${errorMessage}`);
         }
       }
 
@@ -1471,6 +1824,14 @@ const Studio = () => {
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.webp']
+    }
+  });
+
+  // Отдельный dropzone для плавающей панели
+  const { getRootProps: getFloatRootProps, getInputProps: getFloatInputProps, isDragActive: isFloatDragActive } = useDropzone({
     onDrop,
     accept: {
       'image/*': ['.png', '.jpg', '.jpeg', '.webp']
@@ -1547,6 +1908,10 @@ const Studio = () => {
         if (uploadedProducts.length === 0) {
           setDisplayMode('split');
           setCurrentUserPhotoIndex(0);
+          // Показываем правое изображение (фотографию пользователя), если оно скрыто
+          if (isRightImageHidden) {
+            setIsRightImageHidden(false);
+          }
         }
       }
       
@@ -1565,11 +1930,6 @@ const Studio = () => {
         variant: "destructive",
       });
     }
-  };
-
-  // Обновляем PhotoHistoryModal для передачи фотографий пользователя
-  const handlePhotoHistoryOpen = () => {
-    setShowPhotoHistory(true);
   };
 
   // Загружаем историю скрапленных фотографий из таблицы photos
@@ -1654,20 +2014,21 @@ const Studio = () => {
     }
   };
 
+  // Обработчик открытия истории фотографий пользователя
+  const handlePhotoHistoryOpen = () => {
+    setShowPhotoHistory(true);
+    // Всегда загружаем историю при открытии модального окна для получения актуальных данных
+    if (user && !isDemoUser) {
+      loadUserPhotos();
+    }
+  };
+
   // Обработчик выбора фотографии из истории скрапинга (теперь использует общий обработчик)
   const handleSelectFromScrapedHistory = handleSelectFromHistory;
 
-  // Обработчик выбора/снятия выбора фотографии
+  // Обработчик выбора/снятия выбора фотографии (старая версия для удаления - оставляем для совместимости)
   const handleTogglePhotoSelection = (index: number) => {
-    setSelectedScrapedPhotos(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(index)) {
-        newSet.delete(index);
-      } else {
-        newSet.add(index);
-      }
-      return newSet;
-    });
+    handleToggleScrapedPhotoSelection(index);
   };
 
   // Обработчик удаления выбранных фотографий
@@ -1769,6 +2130,16 @@ const Studio = () => {
     }
   }, [displayedScrapedPhotos.length, currentScrapedPhotoIndex]);
 
+  // Автоматически устанавливаем режим split и показываем фотографию пользователя при загрузке, если есть загруженные фотографии
+  useEffect(() => {
+    const totalUserPhotos = uploadedProducts.length + uploadedUserPhotos.length;
+    if (totalUserPhotos > 0 && displayMode !== 'split') {
+      setDisplayMode('split');
+      setIsRightImageHidden(false);
+      setCurrentUserPhotoIndex(0);
+    }
+  }, [uploadedProducts.length, uploadedUserPhotos.length, displayMode]);
+
   if (studioState === "loading") {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -1807,10 +2178,8 @@ const Studio = () => {
     );
   }
 
-  const getThemeIcon = () => {
-    if (theme === "light") return <Sun className="w-4 h-4" />;
-    if (theme === "dark") return <Moon className="w-4 h-4" />;
-    return <Monitor className="w-4 h-4" />;
+  const toggleTheme = (checked: boolean) => {
+    setTheme(checked ? "dark" : "light");
   };
 
   return (
@@ -1836,68 +2205,47 @@ const Studio = () => {
       <header style={{ height: "clamp(3.5rem, 5vh, 4rem)" }} className="bg-card border-b border-border flex items-center justify-between px-[clamp(1rem,3vw,1.5rem)] flex-shrink-0 relative z-10">
         <div className="flex items-center gap-4">
           <AnimatedLogo />
+          <div className="flex items-center gap-2 bg-secondary px-3 py-2 rounded-md border border-border hidden md:flex">
+            <Checkbox 
+              id="snake-toggle" 
+              checked={snakeEnabled}
+              onCheckedChange={toggleSnake}
+            />
+            <label 
+              htmlFor="snake-toggle" 
+              className="text-sm text-foreground cursor-pointer select-none"
+              style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }}
+              title={t("enableSnake")}
+            >
+              🐍
+            </label>
+          </div>
         </div>
         
         <div className="flex items-center gap-[clamp(0.5rem,1vw,0.75rem)]">
           <Select value={language} onValueChange={setLanguage}>
-            <SelectTrigger style={{ width: "clamp(7rem, 10vw, 8.125rem)" }} className="bg-secondary border-border text-foreground cursor-pointer">
+            <SelectTrigger 
+              style={{ width: "clamp(7rem, 10vw, 8.125rem)" }} 
+              className="bg-secondary border-border text-foreground cursor-pointer"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border z-[100]" position="popper" sideOffset={5}>
-              <SelectItem value="en" className="text-foreground hover:bg-accent">
-                <div className="flex items-center">
-                  <span className="text-lg mr-2">🇺🇸</span>
-                  <span>English</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="ru" className="text-foreground hover:bg-accent">
-                <div className="flex items-center">
-                  <span className="text-lg mr-2">🇷🇺</span>
-                  <span>Русский</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="de" className="text-foreground hover:bg-accent">
-                <div className="flex items-center">
-                  <span className="text-lg mr-2">🇩🇪</span>
-                  <span>Deutsch</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="pl" className="text-foreground hover:bg-accent">
-                <div className="flex items-center">
-                  <span className="text-lg mr-2">🇵🇱</span>
-                  <span>Polski</span>
-                </div>
-              </SelectItem>
+              <SelectItem value="en" className="text-foreground hover:bg-accent">English</SelectItem>
+              <SelectItem value="ru" className="text-foreground hover:bg-accent">Русский</SelectItem>
+              <SelectItem value="de" className="text-foreground hover:bg-accent">Deutsch</SelectItem>
+              <SelectItem value="pl" className="text-foreground hover:bg-accent">Polski</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={theme} onValueChange={setTheme}>
-            <SelectTrigger style={{ width: "clamp(6.5rem, 9vw, 7.5rem)" }} className="bg-secondary border-border text-foreground cursor-pointer">
-              <div className="flex items-center gap-2">
-                {getThemeIcon()}
-                <span className="capitalize">{theme}</span>
-              </div>
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border z-[100]" position="popper" sideOffset={5}>
-              <SelectItem value="light" className="text-foreground hover:bg-accent">
-                <div className="flex items-center gap-2">
-                  <Sun className="w-4 h-4" />
-                  {t("light")}
-                </div>
-              </SelectItem>
-              <SelectItem value="dark" className="text-foreground hover:bg-accent">
-                <div className="flex items-center gap-2">
-                  <Moon className="w-4 h-4" />
-                  {t("dark")}
-                </div>
-              </SelectItem>
-              <SelectItem value="system" className="text-foreground hover:bg-accent">
-                <div className="flex items-center gap-2">
-                  <Monitor className="w-4 h-4" />
-                  {t("system")}
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Flame className="w-4 h-4" />
+            <Switch 
+              checked={effectiveTheme === "dark"} 
+              onCheckedChange={toggleTheme}
+              aria-label={t("theme")}
+            />
+            <Moon className="w-4 h-4" />
+          </div>
           <Button 
             variant="ghost" 
             size="icon"
@@ -1921,21 +2269,6 @@ const Studio = () => {
               <LinkIcon style={{ width: "clamp(1rem, 1.2vw, 1.25rem)", height: "clamp(1rem, 1.2vw, 1.25rem)" }} />
             </div>
           </Button>
-          <div className="flex items-center gap-2 bg-secondary px-3 py-2 rounded-md border border-border hidden md:flex">
-            <Checkbox 
-              id="snake-toggle" 
-              checked={snakeEnabled}
-              onCheckedChange={toggleSnake}
-            />
-            <label 
-              htmlFor="snake-toggle" 
-              className="text-sm text-foreground cursor-pointer select-none"
-              style={{ fontSize: "clamp(0.875rem, 1vw, 0.95rem)" }}
-              title={t("enableSnake")}
-            >
-              🐍
-            </label>
-          </div>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -1960,14 +2293,15 @@ const Studio = () => {
       </header>
 
       <div className="flex-1 flex relative overflow-hidden z-10">
-        <motion.div
-          initial={false}
-          animate={{ width: isLeftPanelOpen ? "clamp(13rem, 18vw, 16rem)" : "clamp(2.5rem, 3vw, 2.75rem)" }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          onMouseEnter={() => setIsLeftPanelOpen(true)}
-          onMouseLeave={() => setIsLeftPanelOpen(false)}
-          className="bg-card border-r border-border overflow-hidden relative z-10"
-        >
+          <motion.div
+            data-scraped-photos-area
+            initial={false}
+            animate={{ width: isLeftPanelOpen ? "clamp(13rem, 18vw, 16rem)" : "clamp(2.5rem, 3vw, 2.75rem)" }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            onMouseEnter={() => setIsLeftPanelOpen(true)}
+            onMouseLeave={() => setIsLeftPanelOpen(false)}
+            className="bg-card border-r border-border overflow-hidden relative z-10"
+          >
           {!isLeftPanelOpen && (
             <div className="h-full flex items-center justify-center">
               <Menu style={{ width: "clamp(1.125rem, 1.5vw, 1.25rem)", height: "clamp(1.125rem, 1.5vw, 1.25rem)" }} className="text-muted-foreground" />
@@ -2043,23 +2377,68 @@ const Studio = () => {
                         return (
                           <motion.div
                             key={`scraped-${index}`}
+                            data-scraped-photo-item
                             initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            animate={{ 
+                              opacity: 1, 
+                              y: 0,
+                              scale: isCurrentlyDisplayed ? 1.05 : 1
+                            }}
                             transition={{ 
                               duration: 0.3,
                               delay: index * 0.05
                             }}
                             whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
                             style={{ padding: "clamp(0.375rem, 0.8vw, 0.5rem)" }}
                             className={`rounded-lg transition-all duration-300 relative cursor-pointer ${
-                              isCurrentlyDisplayed ? "border-2 border-primary bg-accent/50" : 
+                              isCurrentlyDisplayed ? "border-2 border-primary bg-accent/50 shadow-lg shadow-primary/20" : 
                               isSelected ? "border-2 border-primary bg-primary/20" : 
                               "border-2 border-transparent hover:bg-accent/30"
                             }`}
                             onClick={(e) => {
+                              // Останавливаем всплытие события, чтобы не закрывать модальные окна и не сбрасывать состояние
+                              e.stopPropagation();
+                              
                               // Не обрабатываем клик, если кликнули на чекбокс
                               if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
                                 return;
+                              }
+                              
+                              // Сохраняем все состояния ДО любых изменений
+                              const totalUserPhotos = uploadedProducts.length + uploadedUserPhotos.length;
+                              const savedUserPhotoIndex = totalUserPhotos > 0 ? currentUserPhotoIndex : 0;
+                              const savedIsRightPanelVisible = isRightPanelVisible;
+                              const savedShowPhotoHistory = showPhotoHistory;
+                              const savedShowScrapedPhotoHistory = showScrapedPhotoHistory;
+                              const savedIsRightImageHidden = isRightImageHidden;
+                              
+                              // Активируем режим split, если он еще не активен
+                              if (displayMode !== 'split') {
+                                setDisplayMode('split');
+                              }
+                              
+                              // Показываем левое изображение, если оно скрыто
+                              if (isLeftImageHidden) {
+                                setIsLeftImageHidden(false);
+                              }
+                              
+                              // КРИТИЧЕСКИ ВАЖНО: Сохраняем видимость правой части (фотографии пользователя)
+                              // Если есть загруженные фотографии, правая часть ДОЛЖНА быть видима
+                              // Если правая часть была видима до клика, она ДОЛЖНА остаться видимой
+                              // Используем flushSync для синхронного обновления, чтобы предотвратить сброс состояния
+                              if (totalUserPhotos > 0 || !savedIsRightImageHidden) {
+                                flushSync(() => {
+                                  setIsRightImageHidden(false);
+                                });
+                              }
+                              
+                              // КРИТИЧЕСКИ ВАЖНО: Открываем панель СРАЗУ, если она была открыта или есть фотографии
+                              // Это предотвращает её закрытие при клике
+                              if (savedIsRightPanelVisible || totalUserPhotos > 0) {
+                                flushSync(() => {
+                                  setIsRightPanelVisible(true);
+                                });
                               }
                               // Находим индекс этой фотографии в displayedScrapedPhotos
                               const displayIndex = displayedScrapedPhotos.findIndex(item => item.originalIndex === index);
@@ -2069,6 +2448,35 @@ const Studio = () => {
                                 // Если фотография не в списке отображаемых, устанавливаем индекс 0
                                 setCurrentScrapedPhotoIndex(0);
                               }
+                              // Восстанавливаем индекс пользовательской фотографии, если есть загруженные фотографии
+                              if (totalUserPhotos > 0 && savedUserPhotoIndex < totalUserPhotos) {
+                                setCurrentUserPhotoIndex(savedUserPhotoIndex);
+                              }
+                              
+                              // Восстанавливаем состояние модального окна истории фотографий
+                              // Используем setTimeout для восстановления после обработки всех обновлений
+                              setTimeout(() => {
+                                // Восстанавливаем видимость правой части (фотографии пользователя) - дополнительная гарантия
+                                if (totalUserPhotos > 0 || !savedIsRightImageHidden) {
+                                  setIsRightImageHidden(false);
+                                }
+                                // Восстанавливаем видимость панели с Add Product и History - дополнительная гарантия
+                                if (savedIsRightPanelVisible || totalUserPhotos > 0) {
+                                  setIsRightPanelVisible(true);
+                                }
+                                // Восстанавливаем состояние модального окна истории фотографий
+                                if (savedShowPhotoHistory) {
+                                  setShowPhotoHistory(true);
+                                }
+                                if (savedShowScrapedPhotoHistory) {
+                                  setShowScrapedPhotoHistory(true);
+                                }
+                              }, 100);
+                              // Показываем уведомление о выборе фотографии (необязательно, можно убрать если слишком навязчиво)
+                              // toast({
+                              //   title: t("photoSelected") || "Фотография выбрана",
+                              //   description: t("photoSelectedForEditing") || "Фотография отображается в центре для редактирования",
+                              // });
                             }}
                           >
                             <div className="relative">
@@ -2080,7 +2488,7 @@ const Studio = () => {
                               <div className="absolute top-2 left-2">
                                 <Checkbox
                                   checked={isSelected}
-                                  onCheckedChange={() => handleTogglePhotoSelection(index)}
+                                  onCheckedChange={() => handleToggleScrapedPhotoSelection(index)}
                                   onClick={(e) => e.stopPropagation()}
                                   className="bg-background/80 backdrop-blur-sm"
                                 />
@@ -2119,7 +2527,7 @@ const Studio = () => {
         </motion.div>
 
         <div className="flex-1 flex items-center justify-center relative">
-          {displayMode === 'split' && (scrapedPhotos.length > 0 || uploadedProducts.length > 0 || userPhotos.length > 0) ? (
+          {displayMode === 'split' && (scrapedPhotos.length > 0 || uploadedProducts.length > 0 || uploadedUserPhotos.length > 0) ? (
             // Режим разделенного экрана
             <div className="w-full h-full flex gap-4 p-4 relative">
               {/* Кнопка восстановления изображений */}
@@ -2213,10 +2621,10 @@ const Studio = () => {
                     {displayedScrapedPhotos[currentScrapedPhotoIndex] ? (
                       <motion.img
                         key={`scraped-${displayedScrapedPhotos[currentScrapedPhotoIndex].originalIndex}`}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
                         src={URL.createObjectURL(displayedScrapedPhotos[currentScrapedPhotoIndex].photo)}
                         alt={displayedScrapedPhotos[currentScrapedPhotoIndex].photo.name || `Photo ${currentScrapedPhotoIndex + 1}`}
                         className="w-full h-full object-contain rounded-lg shadow-2xl"
@@ -2315,6 +2723,7 @@ const Studio = () => {
                 return (
               !isRightImageHidden && (
               <div 
+                data-user-photo-area
                 className={`flex-1 flex items-center justify-center relative cursor-pointer transition-all duration-300 ${
                   isDraggingOverUserPhoto ? 'bg-primary/20 border-2 border-primary border-dashed' : ''
                 } ${isLeftImageHidden ? 'flex-[1_1_100%]' : ''}`}
@@ -2332,8 +2741,16 @@ const Studio = () => {
                     setCurrentUserPhotoIndex(prev => prev + 1);
                   }
                 }}
-                onMouseEnter={() => setIsHoveringUserPhoto(true)}
-                onMouseLeave={() => setIsHoveringUserPhoto(false)}
+                onMouseEnter={() => {
+                  setIsHoveringUserPhoto(true);
+                  // Открываем панель с Add Product и History при наведении на область фотографии пользователя
+                  setIsRightPanelVisible(true);
+                }}
+                onMouseLeave={() => {
+                  setIsHoveringUserPhoto(false);
+                  // Не закрываем панель сразу, чтобы она не закрывалась при клике на скрапленные фотографии
+                  // Панель закроется только если курсор действительно покинул область
+                }}
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -2596,7 +3013,7 @@ const Studio = () => {
                         
                         {/* Анимированный фон при наведении */}
                         <motion.div
-                          className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 group-hover:opacity-100"
+                          className="absolute inset-0 bg-gradient-to-r from-amber-700 to-pink-500 opacity-0 group-hover:opacity-100"
                           initial={{ x: "-100%" }}
                           whileHover={{ x: "0%" }}
                           transition={{ duration: 0.3, ease: "easeOut" }}
@@ -3122,76 +3539,72 @@ const Studio = () => {
               )}
             </AnimatePresence>
 
-            <AnimatePresence>
-              {isRightPanelVisible && (
-                <motion.div
-                  initial={{ x: 50, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: 50, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  onMouseEnter={() => setIsRightPanelVisible(true)}
-                  onMouseLeave={() => setIsRightPanelVisible(false)}
-                  style={{ 
-                    width: "clamp(5rem, 12vw, 9rem)",
-                    height: "clamp(5rem, 12vw, 9rem)",
-                    right: "clamp(0.5rem, 1.5vw, 1rem)",
-                    top: "clamp(0.5rem, 1.5vh, 1rem)",
-                    padding: "clamp(0.4rem, 0.8vw, 0.6rem)"
-                  }}
-                  className="absolute bg-card/95 border-2 border-border flex flex-col backdrop-blur-sm shadow-2xl rounded-xl overflow-hidden z-40"
-                >
-                  <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                    <div
-                      {...getRootProps()}
-                      className={`flex-1 w-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer transition-all duration-300 relative overflow-hidden group ${
-                        isDragActive 
-                          ? "border-primary bg-accent/20" 
-                          : "border-border hover:border-primary/50 hover:bg-accent/10"
-                      } ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      <input {...getInputProps({ id: 'dropzone-input', name: 'dropzoneFile' })} disabled={isUploading} />
-                      {isUploading ? (
-                        <Loader2 
-                          style={{ 
-                            width: "clamp(1.5rem, 4vw, 2rem)", 
-                            height: "clamp(1.5rem, 4vw, 2rem)" 
-                          }}
-                          className="text-muted-foreground animate-spin" 
-                        />
-                      ) : (
-                        <Plus 
-                          style={{ 
-                            width: "clamp(1.5rem, 4vw, 2rem)", 
-                            height: "clamp(1.5rem, 4vw, 2rem)" 
-                          }}
-                          className="text-muted-foreground opacity-60 group-hover:scale-110 group-hover:opacity-90 transition-all" 
-                        />
-                      )}
-                      <p style={{ fontSize: "clamp(0.625rem, 0.8vw, 0.75rem)" }} className="text-muted-foreground text-center mt-1 font-medium px-1">
-                        {isUploading ? t("uploading") : (isDragActive ? t("dropHere") : t("addProduct"))}
-                      </p>
-                    </div>
-                    
-                    <div className="w-full flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePhotoHistoryOpen}
-                        className="flex-1"
-                        style={{ 
-                          fontSize: "clamp(0.5rem, 0.7vw, 0.625rem)",
-                          height: "clamp(1.25rem, 2.5vh, 1.5rem)",
-                          padding: "clamp(0.125rem, 0.3vw, 0.25rem)"
-                        }}
-                      >
-                        <History style={{ width: "clamp(0.75rem, 1.5vw, 1rem)", height: "clamp(0.75rem, 1.5vw, 1rem)" }} className="mr-1" />
-                        {t("history")} {userPhotos.length > 0 && `(${userPhotos.length})`}
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Плавающая панель с Add Product и History - всегда видна */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              style={{ 
+                width: "clamp(5rem, 12vw, 9rem)",
+                right: "clamp(0.5rem, 1.5vw, 1rem)",
+                top: "clamp(0.5rem, 1.5vh, 1rem)",
+                padding: "clamp(0.4rem, 0.8vw, 0.6rem)"
+              }}
+              className="absolute bg-card/95 border-2 border-border backdrop-blur-sm shadow-2xl rounded-xl overflow-hidden z-40 flex flex-col gap-2"
+            >
+              {/* Кнопка Add Product */}
+              <div
+                {...getFloatRootProps()}
+                className={`w-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer transition-all duration-300 relative overflow-hidden group ${
+                  isFloatDragActive 
+                    ? "border-primary bg-accent/20" 
+                    : "border-border hover:border-primary/50 hover:bg-accent/10"
+                } ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
+                style={{
+                  height: "clamp(3rem, 6vh, 4rem)",
+                  padding: "clamp(0.25rem, 0.4vw, 0.375rem)"
+                }}
+              >
+                <input {...getFloatInputProps({ id: 'dropzone-input-float', name: 'dropzoneFileFloat' })} disabled={isUploading} />
+                {isUploading ? (
+                  <Loader2 
+                    style={{ 
+                      width: "clamp(1.25rem, 3vw, 1.5rem)", 
+                      height: "clamp(1.25rem, 3vw, 1.5rem)" 
+                    }}
+                    className="text-muted-foreground animate-spin" 
+                  />
+                ) : (
+                  <Plus 
+                    style={{ 
+                      width: "clamp(1.25rem, 3vw, 1.5rem)", 
+                      height: "clamp(1.25rem, 3vw, 1.5rem)" 
+                    }}
+                    className="text-muted-foreground opacity-60 group-hover:scale-110 group-hover:opacity-90 transition-all" 
+                  />
+                )}
+                <p style={{ fontSize: "clamp(0.5rem, 0.7vw, 0.625rem)" }} className="text-muted-foreground text-center mt-1 font-medium px-1">
+                  {isUploading ? t("uploading") : (isFloatDragActive ? t("dropHere") : t("addProduct"))}
+                </p>
+              </div>
+              
+              {/* Кнопка History */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePhotoHistoryOpen}
+                className="w-full"
+                style={{ 
+                  fontSize: "clamp(0.5rem, 0.7vw, 0.625rem)",
+                  height: "clamp(1.5rem, 3vh, 2rem)",
+                  padding: "clamp(0.25rem, 0.4vw, 0.375rem)"
+                }}
+              >
+                <History style={{ width: "clamp(0.75rem, 1.5vw, 1rem)", height: "clamp(0.75rem, 1.5vw, 1rem)" }} className="mr-1" />
+                {t("history")} {userPhotos.length > 0 && `(${userPhotos.length})`}
+              </Button>
+            </motion.div>
+
           </motion.div>
           )}
         </div>
@@ -3279,6 +3692,29 @@ const Studio = () => {
                     <span className="mr-1.5 text-sm">✨</span>
                     {t("generate")}
                   </Button>
+
+                  {/* Кнопка генерации объединенных фотографий */}
+                  {selectedScrapedPhotos.size === 1 && selectedUserPhotos.size === 1 && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleStartGeneration}
+                      className="w-full h-7 text-xs mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                      disabled={generationState === 'generating'}
+                    >
+                      {generationState === 'generating' ? (
+                        <>
+                          <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                          {t("generating") || "Генерируем..."}
+                        </>
+                      ) : (
+                        <>
+                          <span className="mr-1.5 text-sm">🎨</span>
+                          {t("generateMerged") || "Сгенерировать объединенные"}
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
 
                 {/* Кнопка Add Product */}
@@ -3317,7 +3753,7 @@ const Studio = () => {
                       
                       {/* Анимированный фон */}
                       <motion.div
-                        className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 group-hover:opacity-100"
+                        className="absolute inset-0 bg-gradient-to-r from-amber-700 to-pink-500 opacity-0 group-hover:opacity-100"
                         initial={{ x: "-100%" }}
                         whileHover={{ x: "0%" }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
@@ -3361,6 +3797,9 @@ const Studio = () => {
                           const isCurrentlyDisplayed = displayMode === 'split' 
                             ? totalIndex === currentUserPhotoIndex 
                             : false;
+                          // Используем временный ID на основе имени файла и размера
+                          const tempId = `uploaded-${photo.name}-${photo.size}-${photo.lastModified}`;
+                          const isSelected = selectedUserPhotos.has(tempId);
                           const photoUrl = URL.createObjectURL(photo);
                           
                           return (
@@ -3375,18 +3814,31 @@ const Studio = () => {
                               whileHover={{ scale: 1.02 }}
                               style={{ padding: "clamp(0.25rem, 0.5vw, 0.375rem)" }}
                               className={`rounded-lg transition-all duration-300 relative cursor-pointer ${
-                                isCurrentlyDisplayed ? "border-2 border-primary bg-accent/50" : "border-2 border-transparent hover:bg-accent/30"
+                                isCurrentlyDisplayed ? "border-2 border-primary bg-accent/50" : 
+                                isSelected ? "border-2 border-primary bg-primary/20" :
+                                "border-2 border-transparent hover:bg-accent/30"
                               }`}
                               onClick={() => {
-                                // Открываем модальное окно с выбором фотографий
-                                handlePhotoHistoryOpen();
+                                // Выбираем эту фотографию
+                                setDisplayMode('split');
+                                setCurrentUserPhotoIndex(index);
                               }}
                             >
-                              <img
-                                src={photoUrl}
-                                alt={photo.name || `Uploaded Photo ${index + 1}`}
-                                className="w-full aspect-square object-cover rounded mb-1 pointer-events-none"
-                              />
+                              <div className="relative">
+                                <img
+                                  src={photoUrl}
+                                  alt={photo.name || `Uploaded Photo ${index + 1}`}
+                                  className="w-full aspect-square object-cover rounded mb-1 pointer-events-none"
+                                />
+                                <div className="absolute top-2 left-2">
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => handleToggleUserPhotoSelection(tempId)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="bg-background/80 backdrop-blur-sm"
+                                  />
+                                </div>
+                              </div>
                               <p style={{ fontSize: "clamp(0.625rem, 0.75vw, 0.7rem)" }} className="font-medium text-foreground pointer-events-none truncate">
                                 {photo.name || `Photo ${index + 1}`}
                               </p>
@@ -3400,6 +3852,7 @@ const Studio = () => {
                           const isCurrentlyDisplayed = displayMode === 'split' 
                             ? totalIndex === currentUserPhotoIndex 
                             : index === currentPhotoIndex;
+                          const isSelected = selectedUserPhotos.has(photo.id);
                           const photoUrl = getImageUrl(photo);
                           
                           return (
@@ -3414,19 +3867,32 @@ const Studio = () => {
                               whileHover={{ scale: 1.02 }}
                               style={{ padding: "clamp(0.25rem, 0.5vw, 0.375rem)" }}
                               className={`rounded-lg transition-all duration-300 relative cursor-pointer ${
-                                isCurrentlyDisplayed ? "border-2 border-primary bg-accent/50" : "border-2 border-transparent hover:bg-accent/30"
+                                isCurrentlyDisplayed ? "border-2 border-primary bg-accent/50" : 
+                                isSelected ? "border-2 border-primary bg-primary/20" :
+                                "border-2 border-transparent hover:bg-accent/30"
                               }`}
                               onClick={() => {
-                                // Открываем модальное окно с выбором фотографий
-                                handlePhotoHistoryOpen();
+                                // Выбираем эту фотографию (используем totalIndex, так как это общий индекс для всех загруженных фотографий)
+                                setDisplayMode('split');
+                                setCurrentUserPhotoIndex(totalIndex);
                               }}
                             >
-                              <img
-                                src={photoUrl}
-                                alt={photo.file_name || `Photo ${index + 1}`}
-                                className="w-full aspect-square object-cover rounded mb-1 pointer-events-none"
-                                onError={(e) => handleImageError(photo.id, photo, e)}
-                              />
+                              <div className="relative">
+                                <img
+                                  src={photoUrl}
+                                  alt={photo.file_name || `Photo ${index + 1}`}
+                                  className="w-full aspect-square object-cover rounded mb-1 pointer-events-none"
+                                  onError={(e) => handleImageError(photo.id, photo, e)}
+                                />
+                                <div className="absolute top-2 left-2">
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => handleToggleUserPhotoSelection(photo.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="bg-background/80 backdrop-blur-sm"
+                                  />
+                                </div>
+                              </div>
                               <p style={{ fontSize: "clamp(0.625rem, 0.75vw, 0.7rem)" }} className="font-medium text-foreground pointer-events-none truncate">
                                 {photo.file_name || `Photo ${index + 1}`}
                               </p>
@@ -3436,6 +3902,24 @@ const Studio = () => {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Кнопка History внизу панели */}
+                <div style={{ padding: "clamp(0.75rem, 1.5vw, 1rem)" }} className="border-t border-border mt-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePhotoHistoryOpen}
+                    className="w-full"
+                    style={{ 
+                      fontSize: "clamp(0.625rem, 0.8vw, 0.75rem)",
+                      height: "clamp(2rem, 3vh, 2.5rem)",
+                      padding: "clamp(0.25rem, 0.5vw, 0.375rem)"
+                    }}
+                  >
+                    <History style={{ width: "clamp(0.875rem, 1.2vw, 1rem)", height: "clamp(0.875rem, 1.2vw, 1rem)" }} className="mr-2" />
+                    {t("history") || "History"}
+                  </Button>
                 </div>
 
               </motion.div>
@@ -3482,6 +3966,61 @@ const Studio = () => {
           loadScrapedPhotoHistory();
         }}
       />
+
+      {/* Generation Progress Modal */}
+      <AnimatePresence>
+        {(generationState === 'generating' || generationState === 'completed') && currentGenerationId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
+            onClick={() => {
+              if (generationState === 'completed') {
+                handleResetGeneration();
+              }
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-card rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GenerationProgress
+                generationId={currentGenerationId}
+                onComplete={handleGenerationComplete}
+                onError={handleGenerationError}
+                onCancel={() => {
+                  if (generationState === 'generating') {
+                    handleResetGeneration();
+                  }
+                }}
+              />
+              {generationState === 'completed' && generatedResults.length > 0 && (
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleResetGeneration}
+                  >
+                    {t("close") || "Закрыть"}
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => {
+                      // TODO: Переход к редактированию выбранного варианта
+                      handleResetGeneration();
+                    }}
+                  >
+                    {t("selectBest") || "Выбрать лучший"}
+                  </Button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

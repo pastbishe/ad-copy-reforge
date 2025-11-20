@@ -6,12 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Loader2, Copy, Check, User, Settings, Wallet } from "lucide-react";
+import { Loader2, Copy, Check, User, Settings, Wallet, Flame, Moon } from "lucide-react";
+
 
 const Profile = () => {
   const [loading, setLoading] = useState(true);
@@ -25,7 +27,11 @@ const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t, language, setLanguage } = useLanguage();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, effectiveTheme } = useTheme();
+
+  const toggleTheme = (checked: boolean) => {
+    setTheme(checked ? "dark" : "light");
+  };
 
   useEffect(() => {
     loadProfile();
@@ -64,7 +70,7 @@ const Profile = () => {
       }
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: t("error"),
         description: error.message,
         variant: "destructive",
       });
@@ -76,8 +82,8 @@ const Profile = () => {
   const handleUpdateUsername = async () => {
     if (!username.trim()) {
       toast({
-        title: "Error",
-        description: "Username cannot be empty",
+        title: t("error"),
+        description: t("usernameCannotBeEmpty"),
         variant: "destructive",
       });
       return;
@@ -92,7 +98,7 @@ const Profile = () => {
       if (error) {
         if (error.code === "23505") {
           toast({
-            title: "Error",
+            title: t("error"),
             description: t("usernameExists"),
             variant: "destructive",
           });
@@ -103,13 +109,13 @@ const Profile = () => {
       }
 
       toast({
-        title: "Success",
+        title: t("success"),
         description: t("usernameUpdated"),
       });
       loadProfile();
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: t("error"),
         description: error.message,
         variant: "destructive",
       });
@@ -119,7 +125,7 @@ const Profile = () => {
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
       toast({
-        title: "Error",
+        title: t("error"),
         description: t("passwordMismatch"),
         variant: "destructive",
       });
@@ -128,7 +134,7 @@ const Profile = () => {
 
     if (newPassword.length < 6) {
       toast({
-        title: "Error",
+        title: t("error"),
         description: t("passwordTooShort"),
         variant: "destructive",
       });
@@ -143,7 +149,7 @@ const Profile = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
+        title: t("success"),
         description: t("passwordUpdated"),
       });
       setCurrentPassword("");
@@ -151,7 +157,7 @@ const Profile = () => {
       setConfirmPassword("");
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: t("error"),
         description: error.message,
         variant: "destructive",
       });
@@ -163,7 +169,7 @@ const Profile = () => {
       navigator.clipboard.writeText(profile.referral_code);
       setCodeCopied(true);
       toast({
-        title: "Success",
+        title: t("success"),
         description: t("codeCopied"),
       });
       setTimeout(() => setCodeCopied(false), 2000);
@@ -238,7 +244,7 @@ const Profile = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>{t("username")}</CardTitle>
-                  <CardDescription>Update your display name</CardDescription>
+                  <CardDescription>{t("updateDisplayName")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -247,7 +253,7 @@ const Profile = () => {
                       id="username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Enter username"
+                      placeholder={t("enterUsername")}
                     />
                   </div>
                   <Button onClick={handleUpdateUsername}>{t("saveChanges")}</Button>
@@ -257,7 +263,7 @@ const Profile = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>{t("changePassword")}</CardTitle>
-                  <CardDescription>Update your account password</CardDescription>
+                  <CardDescription>{t("updateAccountPassword")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -287,7 +293,7 @@ const Profile = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>{t("balance")}</CardTitle>
-                  <CardDescription>Your current account balance</CardDescription>
+                  <CardDescription>{t("currentAccountBalance")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-4xl font-bold mb-6">
@@ -326,7 +332,7 @@ const Profile = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>{t("language")}</CardTitle>
-                  <CardDescription>Choose your preferred language</CardDescription>
+                  <CardDescription>{t("choosePreferredLanguage")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Select value={language} onValueChange={setLanguage}>
@@ -346,19 +352,18 @@ const Profile = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>{t("theme")}</CardTitle>
-                  <CardDescription>Choose your preferred theme</CardDescription>
+                  <CardDescription>{t("choosePreferredTheme")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Select value={theme} onValueChange={setTheme}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light">{t("lightTheme")}</SelectItem>
-                      <SelectItem value="dark">{t("darkTheme")}</SelectItem>
-                      <SelectItem value="system">{t("systemTheme")}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-3">
+                    <Flame className="w-5 h-5" />
+                    <Switch 
+                      checked={effectiveTheme === "dark"} 
+                      onCheckedChange={toggleTheme}
+                      aria-label={t("theme")}
+                    />
+                    <Moon className="w-5 h-5" />
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

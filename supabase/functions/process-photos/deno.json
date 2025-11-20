@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "supabase": "https://esm.sh/@supabase/supabase-js@2",
+    "magick-wasm": "https://esm.sh/@imagemagick/magick-wasm@0.0.20"
+  }
+}
+

@@ -257,6 +257,42 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_photos: {
+        Row: {
+          id: string
+          user_id: string
+          scraped_photo_id: string
+          user_photo_id: string
+          generated_urls: string[]
+          status: 'pending' | 'processing' | 'completed' | 'failed'
+          error_message: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          scraped_photo_id: string
+          user_photo_id: string
+          generated_urls?: string[]
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          scraped_photo_id?: string
+          user_photo_id?: string
+          generated_urls?: string[]
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

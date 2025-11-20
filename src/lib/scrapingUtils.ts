@@ -166,6 +166,7 @@ export async function checkAndUpdateScrapeJobStatus(jobId: string): Promise<'run
 
 /**
  * Ожидает завершения задания скрапинга (пока статус не станет 'done' или 'error')
+ * Использует real-time подписку Supabase вместо polling для уменьшения количества запросов
  */
 export async function waitForScrapeJobCompletion(
   jobId: string,
@@ -175,48 +176,193 @@ export async function waitForScrapeJobCompletion(
     onProgress?: (attempt: number, maxAttempts: number) => void;
   } = {}
 ): Promise<'done' | 'error'> {
-  const { maxAttempts = 60, delay = 3000, onProgress } = options;
+  const { maxAttempts = 30, delay = 1000, onProgress } = options;
+  const timeout = maxAttempts * delay; // Общий таймаут в миллисекундах
 
-  try {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        const status = await checkAndUpdateScrapeJobStatus(jobId);
-        
-        if (status === 'done' || status === 'error') {
-          return status;
-        }
+  return new Promise((resolve) => {
+    let isResolved = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let progressInterval: NodeJS.Timeout | null = null;
+    let pollingInterval: NodeJS.Timeout | null = null;
+    let progressCounter = 0;
 
-        // Вызываем callback для обновления прогресса
-        if (onProgress) {
-          onProgress(attempt + 1, maxAttempts);
+    const cleanup = () => {
+      if (channel) {
+        try {
+          channel.unsubscribe();
+        } catch (e) {
+          console.error('Ошибка отписки от канала:', e);
         }
-
-        // Ждем перед следующей проверкой
-        await new Promise(resolve => setTimeout(resolve, delay));
-      } catch (attemptError) {
-        console.error(`Ошибка при попытке ${attempt + 1} проверки статуса:`, attemptError);
-        // Продолжаем попытки, если это не последняя
-        if (attempt < maxAttempts - 1) {
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-        // Если это последняя попытка, возвращаем ошибку
-        return 'error';
+        channel = null;
       }
-    }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+    };
 
-    // Если достигнут максимум попыток, проверяем статус еще раз
-    try {
-      const finalStatus = await checkAndUpdateScrapeJobStatus(jobId);
-      return finalStatus === 'done' || finalStatus === 'error' ? finalStatus : 'error';
-    } catch (finalError) {
-      console.error('Ошибка при финальной проверке статуса:', finalError);
-      return 'error';
-    }
-  } catch (error) {
-    console.error('Критическая ошибка при ожидании завершения задания:', error);
-    return 'error';
-  }
+    const resolveOnce = (status: 'done' | 'error') => {
+      if (!isResolved) {
+        isResolved = true;
+        cleanup();
+        resolve(status);
+      }
+    };
+
+    // Сначала проверяем текущий статус
+    checkAndUpdateScrapeJobStatus(jobId).then((initialStatus) => {
+      if (initialStatus === 'done' || initialStatus === 'error') {
+        resolveOnce(initialStatus);
+        return;
+      }
+
+      // Если статус еще 'running', создаем real-time подписку
+      console.log('waitForScrapeJobCompletion: создаем real-time подписку для jobId:', jobId);
+      
+      channel = supabase
+        .channel(`scrape-job-${jobId}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'scrape_jobs',
+            filter: `id=eq.${jobId}`,
+          },
+          async (payload) => {
+            console.log('waitForScrapeJobCompletion: получено событие UPDATE:', payload);
+            
+            const newRecord = payload.new as { id: string; status: 'running' | 'done' | 'error' };
+            
+            // Проверяем статус и наличие фотографий
+            if (newRecord.status === 'done' || newRecord.status === 'error') {
+              // Дополнительно проверяем через checkAndUpdateScrapeJobStatus для надежности
+              const verifiedStatus = await checkAndUpdateScrapeJobStatus(jobId);
+              if (verifiedStatus === 'done' || verifiedStatus === 'error') {
+                resolveOnce(verifiedStatus);
+              }
+            }
+          }
+        )
+        .subscribe((subscribeStatus) => {
+          console.log('waitForScrapeJobCompletion: статус подписки:', subscribeStatus);
+          
+          if (subscribeStatus === 'SUBSCRIBED') {
+            console.log('waitForScrapeJobCompletion: подписка активна, ждем обновления...');
+            
+            // Запускаем обновление прогресса (только для UI, не делает запросы)
+            if (onProgress) {
+              progressInterval = setInterval(() => {
+                progressCounter++;
+                if (progressCounter <= maxAttempts) {
+                  onProgress(progressCounter, maxAttempts);
+                }
+              }, delay);
+            }
+            
+            // Также запускаем активный polling для быстрой реакции (на случай, если real-time не сработает)
+            // Проверяем статус каждую секунду, даже при работающей real-time подписке
+            pollingInterval = setInterval(async () => {
+              if (isResolved) {
+                if (pollingInterval) {
+                  clearInterval(pollingInterval);
+                  pollingInterval = null;
+                }
+                return;
+              }
+              
+              try {
+                const status = await checkAndUpdateScrapeJobStatus(jobId);
+                if (status === 'done' || status === 'error') {
+                  resolveOnce(status);
+                }
+              } catch (pollingError) {
+                console.error('Ошибка при активном polling:', pollingError);
+                // Продолжаем polling даже при ошибке
+              }
+            }, delay);
+          } else if (subscribeStatus === 'CHANNEL_ERROR' || subscribeStatus === 'TIMED_OUT' || subscribeStatus === 'CLOSED') {
+            console.warn('waitForScrapeJobCompletion: ошибка подписки, используем fallback polling. Статус:', subscribeStatus);
+            // Fallback на polling только если real-time не работает
+            cleanup();
+            // Используем старую логику polling как fallback
+            fallbackPolling();
+          }
+        });
+    }).catch((error) => {
+      console.error('waitForScrapeJobCompletion: ошибка начальной проверки, используем fallback polling:', error);
+      fallbackPolling();
+    });
+
+    // Fallback функция для polling (используется только если real-time не работает)
+    const fallbackPolling = async () => {
+      try {
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          if (isResolved) break;
+          
+          try {
+            const status = await checkAndUpdateScrapeJobStatus(jobId);
+            
+            if (status === 'done' || status === 'error') {
+              resolveOnce(status);
+              return;
+            }
+
+            if (onProgress) {
+              onProgress(attempt + 1, maxAttempts);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } catch (attemptError) {
+            console.error(`Ошибка при попытке ${attempt + 1} проверки статуса:`, attemptError);
+            if (attempt < maxAttempts - 1) {
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+            resolveOnce('error');
+            return;
+          }
+        }
+
+        // Финальная проверка
+        if (!isResolved) {
+          try {
+            const finalStatus = await checkAndUpdateScrapeJobStatus(jobId);
+            resolveOnce(finalStatus === 'done' || finalStatus === 'error' ? finalStatus : 'error');
+          } catch (finalError) {
+            console.error('Ошибка при финальной проверке статуса:', finalError);
+            resolveOnce('error');
+          }
+        }
+      } catch (error) {
+        console.error('Критическая ошибка при fallback polling:', error);
+        if (!isResolved) {
+          resolveOnce('error');
+        }
+      }
+    };
+
+    // Устанавливаем общий таймаут
+    timeoutId = setTimeout(() => {
+      console.log('waitForScrapeJobCompletion: таймаут, проверяем финальный статус');
+      if (!isResolved) {
+        checkAndUpdateScrapeJobStatus(jobId).then((finalStatus) => {
+          resolveOnce(finalStatus === 'done' || finalStatus === 'error' ? finalStatus : 'error');
+        }).catch(() => {
+          resolveOnce('error');
+        });
+      }
+    }, timeout);
+  });
 }
 
 /**
@@ -359,11 +505,12 @@ export async function getCombinedPhotoHistory(userId: string, limit: number = 50
     .limit(limit);
 
   // Получаем импортированные фотографии из таблицы photos
+  // Показываем фотографии со статусом 'completed' или 'processing', если у них есть photo_url
   const { data: importedPhotos, error: importedPhotosError } = await supabase
     .from('photos')
-    .select('id, photo_url, url, created_at, updated_at')
+    .select('id, photo_url, url, created_at, updated_at, status')
     .eq('user_id', userId)
-    .eq('status', 'completed')
+    .in('status', ['completed', 'processing'])
     .not('photo_url', 'is', null)
     .order('updated_at', { ascending: false })
     .limit(limit * 2); // Получаем больше, так как один импорт может содержать несколько фотографий
@@ -378,13 +525,15 @@ export async function getCombinedPhotoHistory(userId: string, limit: number = 50
     console.error('Ошибка получения импортированных фотографий:', importedPhotosError);
   }
 
-  // Обрабатываем импортированные фотографии
+  // Обрабатываем импортированные фотографии из таблицы photos
+  // Эти фотографии уже обработаны Edge Function и сохранены в photos-storage bucket
   const importedPhotoItems: any[] = [];
   if (importedPhotos) {
     for (const importItem of importedPhotos) {
       if (!importItem.photo_url) continue;
       
       // Извлекаем URL фотографий (может быть строка, JSON массив или разделенные запятыми)
+      // Эти URL указывают на сжатые версии в photos-storage bucket
       let photoUrls: string[] = [];
       
       try {
@@ -405,15 +554,24 @@ export async function getCombinedPhotoHistory(userId: string, limit: number = 50
       }
       
       // Создаем PhotoHistoryItem для каждого URL
+      // URL указывают на сжатые версии в photos-storage bucket
       for (const photoUrl of photoUrls) {
-        const fileName = photoUrl.split('/').pop() || `photo-${importItem.id}`;
+        // Проверяем, что URL указывает на photos-storage bucket
+        const isFromStorage = photoUrl.includes('/storage/v1/object/public/photos-storage/') || 
+                              photoUrl.includes('photos-storage');
+        
+        // Извлекаем имя файла из URL
+        let fileName = photoUrl.split('/').pop() || `photo-${importItem.id}`;
+        // Убираем query параметры из имени файла
+        fileName = fileName.split('?')[0];
+        
         importedPhotoItems.push({
           id: `${importItem.id}-${photoUrl}`,
-          original_url: photoUrl,
-          compressed_url: photoUrl,
+          original_url: photoUrl, // Сжатая версия из Storage
+          compressed_url: photoUrl, // Сжатая версия из Storage
           url: photoUrl,
           file_name: fileName,
-          file_size: 0,
+          file_size: 0, // Размер будет определен при загрузке
           width: undefined,
           height: undefined,
           quality_score: undefined,
@@ -457,44 +615,130 @@ export async function getCombinedPhotoHistory(userId: string, limit: number = 50
 }
 
 /**
+ * Генерирует уникальный номер операции
+ * Формат: OP-{timestamp}-{random}
+ * Это читаемый номер для отправки в n8n и логирования
+ */
+export function generateOperationNumber(): string {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `OP-${timestamp}-${random}`;
+}
+
+/**
+ * Генерирует UUID для хранения в базе данных (operation_id)
+ */
+export function generateOperationId(): string {
+  // Используем crypto.randomUUID() если доступен, иначе генерируем UUID v4 вручную
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback для старых браузеров
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+/**
  * Упрощенная функция для запуска скрапинга через n8n webhook
  * Используется, когда webhook сам создает job в БД
  */
 export async function startScrapingJobSimple(
   sourceUrl: string,
   userId: string,
-  n8nWebhookUrl?: string
+  n8nWebhookUrl?: string,
+  operationNumber?: string,
+  photoId?: string
 ): Promise<ScrapeJob> {
-  console.log('startScrapingJobSimple вызван:', { sourceUrl, userId, n8nWebhookUrl });
+  console.log('startScrapingJobSimple вызван:', { sourceUrl, userId, n8nWebhookUrl, operationNumber, photoId });
   
   if (!n8nWebhookUrl) {
     console.error('N8N webhook URL не установлен');
     throw new Error('N8N webhook URL is required');
   }
 
+  // Проверяем, есть ли уже активный job для этого URL и пользователя
+  // Это предотвращает дубликаты вызовов вебхука
+  const { data: existingActiveJob } = await supabase
+    .from('scrape_jobs')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('source_url', sourceUrl)
+    .eq('status', 'running')
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingActiveJob) {
+    console.log('startScrapingJobSimple: найден активный job, возвращаем его:', existingActiveJob.id);
+    return existingActiveJob;
+  }
+
   // Отправляем запрос в n8n webhook с retry логикой
   try {
-    const requestBody = {
+    // ВСЕГДА генерируем номер операции для каждой операции
+    // Если номер не передан, генерируем новый
+    const finalOperationNumber = operationNumber ? operationNumber : generateOperationNumber();
+    
+    // Убеждаемся, что номер операции точно есть
+    if (!finalOperationNumber) {
+      throw new Error('Не удалось сгенерировать номер операции');
+    }
+    
+    // Формируем body запроса с обязательным полем operationNumber и опциональным photoId
+    const requestBody: {
+      sourceUrl: string;
+      userId: string;
+      operationNumber: string;
+      photoId?: string;
+    } = {
       sourceUrl: sourceUrl,
-      userId: userId
+      userId: userId,
+      operationNumber: finalOperationNumber
     };
     
-    console.log('Отправляем POST запрос на:', n8nWebhookUrl);
-    console.log('Тело запроса:', requestBody);
+    // Добавляем photoId, если он передан
+    if (photoId) {
+      requestBody.photoId = photoId;
+    }
+    
+    // Проверяем, что все обязательные поля присутствуют
+    if (!requestBody.sourceUrl || !requestBody.userId || !requestBody.operationNumber) {
+      console.error('Ошибка: не все обязательные поля присутствуют в requestBody:', requestBody);
+      throw new Error('Не все обязательные поля присутствуют в запросе');
+    }
+    
+    console.log('=== ОТПРАВКА ВЕБХУКА ===');
+    console.log('URL вебхука:', n8nWebhookUrl);
+    console.log('Тело запроса (JSON):', JSON.stringify(requestBody, null, 2));
+    console.log('Номер операции:', finalOperationNumber);
+    console.log('Проверка body перед отправкой:', {
+      hasSourceUrl: !!requestBody.sourceUrl,
+      hasUserId: !!requestBody.userId,
+      hasOperationNumber: !!requestBody.operationNumber,
+      operationNumberValue: requestBody.operationNumber
+    });
     
     // Обертываем запрос в retry логику для автоматического повтора при ошибках таймаута
     const webhookResponse = await withRetry(async () => {
       // Создаем AbortController для таймаута
+      // Сокращаем таймаут до 30 секунд - если webhook не отвечает за это время, что-то не так
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 секунд таймаут
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд таймаут
       
       try {
+        // Сериализуем body в JSON
+        const bodyString = JSON.stringify(requestBody);
+        console.log('Отправляем body (строка):', bodyString);
+        
         const response = await fetch(n8nWebhookUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(requestBody),
+          body: bodyString,
           signal: controller.signal
         });
         
@@ -503,14 +747,24 @@ export async function startScrapingJobSimple(
       } catch (fetchError) {
         clearTimeout(timeoutId);
         if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          const timeoutError: any = new Error('Webhook request timeout: запрос превысил 60 секунд');
+          const timeoutError: any = new Error('Сервер не отвечает. Запрос превысил 30 секунд. Проверьте подключение к интернету.');
           timeoutError.name = 'TimeoutError';
           throw timeoutError;
+        }
+        // Обрабатываем сетевые ошибки
+        if (fetchError instanceof Error && (
+          fetchError.message.includes('Failed to fetch') ||
+          fetchError.message.includes('NetworkError') ||
+          fetchError.message.includes('Network request failed')
+        )) {
+          const networkError: any = new Error('Проблема с подключением к серверу. Проверьте интернет-соединение.');
+          networkError.name = 'NetworkError';
+          throw networkError;
         }
         throw fetchError;
       }
     }, {
-      maxRetries: 2, // Максимум 2 повтора (всего 3 попытки)
+      maxRetries: 1, // Максимум 1 повтор (всего 2 попытки) - сократили с 2
       retryDelay: 2000, // 2 секунды задержка между попытками
     });
 
@@ -521,9 +775,27 @@ export async function startScrapingJobSimple(
     });
 
     if (!webhookResponse.ok) {
-      const errorText = await webhookResponse.text();
+      let errorText = '';
+      try {
+        errorText = await webhookResponse.text();
+      } catch (textError) {
+        errorText = 'Не удалось прочитать ответ сервера';
+      }
       console.error('Ошибка вебхука:', errorText);
-      throw new Error(`Webhook error: ${webhookResponse.status} - ${errorText}`);
+      
+      // Даем более понятные сообщения в зависимости от статуса
+      let errorMessage = `Ошибка сервера (${webhookResponse.status})`;
+      if (webhookResponse.status === 404) {
+        errorMessage = 'Webhook не найден. Проверьте настройки.';
+      } else if (webhookResponse.status === 500 || webhookResponse.status === 502 || webhookResponse.status === 503) {
+        errorMessage = 'Сервер временно недоступен. Попробуйте позже.';
+      } else if (webhookResponse.status === 400) {
+        errorMessage = 'Неверный запрос. Проверьте параметры.';
+      } else if (errorText && errorText.length < 200) {
+        errorMessage = errorText;
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const result = await webhookResponse.json();
@@ -601,7 +873,33 @@ export async function startScrapingJobSimple(
 }
 
 /**
+ * Проверяет, есть ли уже запись об импорте для данного URL и пользователя со статусом pending или processing
+ */
+export async function checkExistingPhotoImport(
+  userId: string,
+  url: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('photos')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('url', url)
+    .in('status', ['pending', 'processing'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Ошибка проверки существующего импорта:', error);
+    return null;
+  }
+
+  return data?.id || null;
+}
+
+/**
  * Сохраняет запись об импорте ссылки в таблицу photos
+ * Использует UPSERT для предотвращения дубликатов по (user_id, url)
  */
 export async function savePhotoImport(
   userId: string,
@@ -609,17 +907,86 @@ export async function savePhotoImport(
   status: 'pending' | 'processing' | 'completed' | 'failed' = 'pending',
   operationId?: string
 ): Promise<string> {
-  const { data, error } = await supabase
+  // Если передан operationId, проверяем, нет ли уже записи с таким operation_id
+  // Это предотвращает дубликаты для одной и той же операции скрапинга
+  if (operationId) {
+    const { data: existingByOperationId } = await supabase
+      .from('photos')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('operation_id', operationId)
+      .maybeSingle();
+
+    if (existingByOperationId) {
+      console.log('savePhotoImport: найдена запись с таким operation_id, обновляем её:', existingByOperationId.id);
+      await updatePhotoImport(existingByOperationId.id, status);
+      return existingByOperationId.id;
+    }
+  }
+
+  // Используем UPSERT для предотвращения дубликатов по уникальному ограничению (user_id, url)
+  // Если запись уже существует, обновляем её, иначе создаем новую
+  const insertData = {
+    user_id: userId,
+    url: url,  // ссылка, которую вставляет пользователь
+    photo_url: null,  // будет заполнено n8n
+    status: status,
+    operation_id: operationId
+  };
+
+  // Проверяем, существует ли уже запись с такой комбинацией (user_id, url)
+  const { data: existing } = await supabase
     .from('photos')
-    .insert({
-      user_id: userId,
-      url: url,  // ссылка, которую вставляет пользователь
-      photo_url: null,  // будет заполнено n8n
-      status: status,
-      operation_id: operationId
-    })
     .select('id')
-    .single();
+    .eq('user_id', userId)
+    .eq('url', url)
+    .maybeSingle();
+
+  let data;
+  let error;
+
+  if (existing) {
+    // Обновляем существующую запись
+    const updateData: any = {
+      status: status,
+      updated_at: new Date().toISOString()
+    };
+    if (operationId !== undefined) {
+      updateData.operation_id = operationId;
+    }
+    // Обновляем photo_url только если оно еще не заполнено (null)
+    if (insertData.photo_url !== null) {
+      updateData.photo_url = insertData.photo_url;
+    }
+
+    const result = await supabase
+      .from('photos')
+      .update(updateData)
+      .eq('id', existing.id)
+      .select('id')
+      .single();
+    
+    data = result.data;
+    error = result.error;
+    
+    if (!error) {
+      console.log('savePhotoImport: обновлена существующая запись:', data.id, 'для URL:', url);
+    }
+  } else {
+    // Создаем новую запись
+    const result = await supabase
+      .from('photos')
+      .insert(insertData)
+      .select('id')
+      .single();
+    
+    data = result.data;
+    error = result.error;
+    
+    if (!error) {
+      console.log('savePhotoImport: создана новая запись:', data.id, 'для URL:', url, 'operation_id:', operationId);
+    }
+  }
 
   if (error) {
     throw new Error(`Ошибка сохранения импорта: ${error.message}`);

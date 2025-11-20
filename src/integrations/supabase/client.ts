@@ -35,8 +35,27 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
             })()
           : controller.signal;
         
+        // Убеждаемся, что заголовки правильно установлены для Supabase PostgREST
+        const headers = options.headers 
+          ? (options.headers instanceof Headers 
+              ? new Headers(options.headers) 
+              : new Headers(options.headers as Record<string, string>))
+          : new Headers();
+        
+        // Если заголовок Accept не установлен, устанавливаем его для Supabase
+        if (!headers.has('Accept')) {
+          headers.set('Accept', 'application/json');
+        }
+        
+        // Убеждаемся, что Content-Type установлен для POST/PATCH/DELETE запросов
+        if ((options.method === 'POST' || options.method === 'PATCH' || options.method === 'DELETE') 
+            && !headers.has('Content-Type') && options.body) {
+          headers.set('Content-Type', 'application/json');
+        }
+        
         const response = await fetch(url, {
           ...options,
+          headers,
           signal,
         });
         
