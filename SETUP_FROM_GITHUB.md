@@ -5,7 +5,7 @@
 ## Шаг 1: Клонирование репозитория
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ad-copy-reforge.git
+git clone https://github.com/pastbishe/ad-copy-reforge.git
 cd ad-copy-reforge
 ```
 
